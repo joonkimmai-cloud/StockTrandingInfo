@@ -79,22 +79,25 @@ async def generate_analysis(stock_data):
     
     try:
         response = model.generate_content(prompt)
-        # Handle potential formatting issues (Gemini sometimes adds markdown codes)
         text = response.text.strip()
         if text.startswith('```json'):
             text = text[7:-3].strip()
         elif text.startswith('```'):
             text = text[3:-3].strip()
         
-        return json.loads(text)
+        result = json.loads(text)
+        result['status'] = 'success'
+        return result
     except Exception as e:
         print(f"AI Analysis failed: {e}")
         return {
-            "market_summary": "분석 중 오류가 발생했습니다.",
-            "kr_analysis": [],
-            "us_analysis": [],
-            "prediction": "오류로 인해 예측을 생성할 수 없습니다."
+            "status": "error",
+            "error_message": str(e),
+            "market_summary": "AI 분석 세션에 오류가 발생했습니다.",
+            "raw_data": stock_data, # 기사 정보를 보존
+            "prediction": "AI 분석 실패로 인해 예측을 제공할 수 없습니다."
         }
+
 
 async def main():
     if not os.path.exists('.tmp/market_data.json'):
