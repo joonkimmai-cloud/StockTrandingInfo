@@ -1,6 +1,0 @@
-name = "stock-trading-top-10"
-pages_build_output_dir = "dist"
-
-[vars]
-# These will be set in the Cloudflare Dashboard for production
-GEMINI_API_KEY = "AIzaSyDBwo4Un-dG3TlfODqQUZc58-AI1KX9ylI"
