@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Alpha - 프리미엄 데일리 증권 리포트</title>
-    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -144,7 +144,7 @@
     <script>
         const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
         const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function subscribe() {
             const emailInput = document.getElementById('email');
@@ -157,12 +157,17 @@
                 return;
             }
 
+            // 구독 확인 알림창 추가
+            const isConfirmed = confirm(`${email} 주소로 데일리 리포트를 구독하시겠습니까?`);
+            if (!isConfirmed) return;
+
             btnText.innerText = "처리 중...";
             btnText.disabled = true;
 
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('subscribers')
                 .insert([{ email }]);
+
 
             if (error) {
                 if (error.code === '23505') {
