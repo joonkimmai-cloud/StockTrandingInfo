@@ -9,26 +9,39 @@ export const onRequest = async (context: any) => {
   const marketParam = url.searchParams.get('market') || 'US';
   const market = marketParam === 'KR' ? 'KR' : 'US';
 
-  try {
-    // 1. Fetch & Analyze (Inline here to avoid complex cross-bundling issues in Workers)
-    const tickers = market === 'US' ? 
-      ['AAPL', 'NVDA', 'TSLA', 'AMD', 'MSFT', 'AMZN', 'META', 'GOOGL', 'AVGO', 'PLTR'] : 
-      ['005930.KS', '000660.KS', '373220.KS', '207940.KS', '005380.KS', '068270.KS', '005490.KS', '051910.KS', '035420.KS', '035720.KS'];
+  const US_TICKERS = [
+    'AAPL', 'NVDA', 'TSLA', 'AMD', 'MSFT', 'AMZN', 'META', 'GOOGL', 'GOOG', 'AVGO',
+    'PLTR', 'SMCI', 'COIN', 'MSTR', 'BABA', 'NFLX', 'INTC', 'MU', 'T', 'F'
+  ];
 
-    const stocks = await Promise.all(
-      tickers.map(async (ticker) => {
-        const quote = await (yahooFinance as any).quote(ticker);
-        const news = await (yahooFinance as any).search(ticker, { newsCount: 3 });
-        return {
-          symbol: ticker,
-          shortName: quote.shortName || ticker,
-          regularMarketPrice: quote.regularMarketPrice || 0,
-          regularMarketChangePercent: quote.regularMarketChangePercent || 0,
-          regularMarketVolume: quote.regularMarketVolume || 0,
-          news: news.news || []
-        };
+  const KR_TICKERS = [
+    '005930.KS', '000660.KS', '373220.KS', '207940.KS', '005380.KS', '068270.KS', '005490.KS', '051910.KS', '035420.KS', '035720.KS',
+    '000270.KS', '012330.KS', '105560.KS', '055550.KS', '032830.KS', '003550.KS', '033780.KS', '015760.KS', '096770.KS', '086790.KS'
+  ];
+
+  try {
+    const tickersRaw = market === 'US' ? US_TICKERS : KR_TICKERS;
+
+    const stocksRaw = await Promise.all(
+      tickersRaw.map(async (ticker) => {
+        try {
+          const quote = await (yahooFinance as any).quote(ticker);
+          const news = await (yahooFinance as any).search(ticker, { newsCount: 3 });
+          return {
+            symbol: ticker,
+            shortName: quote.shortName || ticker,
+            regularMarketPrice: quote.regularMarketPrice || 0,
+            regularMarketChangePercent: quote.regularMarketChangePercent || 0,
+            regularMarketVolume: quote.regularMarketVolume || 0,
+            news: news.news || []
+          };
+        } catch (e) { return null; }
       })
     );
+
+    const stocks = (stocksRaw.filter(s => s !== null) as any[])
+      .sort((a, b) => b.regularMarketVolume - a.regularMarketVolume)
+      .slice(0, 10);
 
     const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ model: "gemini-pro" });
