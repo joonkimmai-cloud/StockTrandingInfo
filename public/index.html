@@ -176,6 +176,19 @@
                 btnText.innerText = "처리 중...";
                 btnText.disabled = true;
 
+                console.log("Checking if subscriber already exists...");
+                const { data: existingUser, error: checkError } = await supabaseClient
+                    .from('subscribers')
+                    .select('email')
+                    .eq('email', email)
+                    .single();
+
+                if (existingUser) {
+                    alert(`${email} 주소는 이미 구독 중입니다.`);
+                    messageElement.innerHTML = '<span class="success">이미 구독 중인 이메일입니다!</span>';
+                    return;
+                }
+
                 console.log("Inserting subscriber into Supabase...");
                 const { data, error } = await supabaseClient
                     .from('subscribers')
@@ -184,6 +197,7 @@
                 if (error) {
                     console.error("Supabase Insert Error:", error);
                     if (error.code === '23505') {
+                        alert(`${email} 주소는 이미 구독 중입니다.`);
                         messageElement.innerHTML = '<span class="success">이미 구독 중인 이메일입니다!</span>';
                     } else {
                         messageElement.innerHTML = `<span class="error">서버 오류: ${error.message}</span>`;
