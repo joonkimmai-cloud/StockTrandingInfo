@@ -1,19 +1,16 @@
--- Supabase SQL Schema
--- Run this in your Supabase SQL Editor
-
-CREATE TABLE IF NOT EXISTS public.daily_reports (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  market text NOT NULL,
-  date date DEFAULT CURRENT_DATE,
-  stocks jsonb NOT NULL,
-  summaries jsonb NOT NULL,
-  created_at timestamp with time zone DEFAULT now()
+-- 구독자 정보를 저장하기 위한 테이블 생성
+CREATE TABLE public.subscribers (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Optional: Add index for faster lookup
-CREATE INDEX IF NOT EXISTS idx_market_created ON daily_reports (market, created_at DESC);
+-- 보안: Row Level Security (RLS) 설정 (선택 사항)
+-- 익명 사용자가 이메일을 추가할 수 있도록 허용
+ALTER TABLE public.subscribers ENABLE ROW LEVEL SECURITY;
 
--- Allow anonymous access (if using anon key)
-ALTER TABLE public.daily_reports ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public read" ON public.daily_reports FOR SELECT USING (true);
-CREATE POLICY "Service insert" ON public.daily_reports FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public insert" ON public.subscribers
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Allow service_role full access" ON public.subscribers
+    FOR ALL USING (true);

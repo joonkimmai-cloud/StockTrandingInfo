@@ -1,13 +1,184 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Daily Stock News Reporter</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Alpha - 프리미엄 데일리 증권 리포트</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --primary-gradient: linear-gradient(135deg, #7b2ff7 0%, #21d4fd 100%);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --text-color: #ffffff;
+            --accent-color: #21d4fd;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0d1117 100%);
+        }
+
+        .container {
+            text-align: center;
+            max-width: 500px;
+            padding: 40px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            font-size: 1.1rem;
+            color: #8b949e;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .input-group {
+            position: relative;
+            margin-top: 20px;
+        }
+
+        input[type="email"] {
+            width: 100%;
+            padding: 18px 25px;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input[type="email"]:focus {
+            border-color: #7b2ff7;
+            box-shadow: 0 0 15px rgba(123, 47, 247, 0.3);
+        }
+
+        button {
+            width: 100%;
+            margin-top: 15px;
+            padding: 18px;
+            border: none;
+            border-radius: 14px;
+            background: var(--primary-gradient);
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(123, 47, 247, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(123, 47, 247, 0.6);
+        }
+
+        #message {
+            margin-top: 20px;
+            font-size: 0.9rem;
+            min-height: 20px;
+        }
+
+        .success { color: #2ecc71; }
+        .error { color: #e74c3c; }
+
+        .tag {
+            display: inline-block;
+            background: rgba(123, 47, 247, 0.2);
+            color: var(--accent-color);
+            padding: 5px 15px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="tag">ALPHA TRADING SYSTEM</div>
+        <h1>Daily Spikes</h1>
+        <p>전일 거래량 급증 종목을 AI로 분석한<br>전문 에널리스트 리포트를 매일 아침 받아보세요.</p>
+        
+        <div class="input-group">
+            <input type="email" id="email" placeholder="이메일 주소를 입력하세요" required>
+            <button onclick="subscribe()" id="btnText">무료 리포트 구독하기</button>
+        </div>
+        <div id="message"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function subscribe() {
+            const emailInput = document.getElementById('email');
+            const messageElement = document.getElementById('message');
+            const btnText = document.getElementById('btnText');
+            const email = emailInput.value;
+
+            if (!email || !email.includes('@')) {
+                messageElement.innerHTML = '<span class="error">유효한 이메일 주소를 입력해 주세요.</span>';
+                return;
+            }
+
+            btnText.innerText = "처리 중...";
+            btnText.disabled = true;
+
+            const { data, error } = await supabase
+                .from('subscribers')
+                .insert([{ email }]);
+
+            if (error) {
+                if (error.code === '23505') {
+                    messageElement.innerHTML = '<span class="success">이미 구독 중인 이메일입니다!</span>';
+                } else {
+                    console.error(error);
+                    messageElement.innerHTML = '<span class="error">구독 중 오류가 발생했습니다.</span>';
+                }
+            } else {
+                messageElement.innerHTML = '<span class="success">구독이 완료되었습니다. 내일 아침에 뵙겠습니다!</span>';
+                emailInput.value = '';
+            }
+            
+            btnText.innerText = "무료 리포트 구독하기";
+            btnText.disabled = false;
+        }
+    </script>
+</body>
 </html>

@@ -1,0 +1,94 @@
+import os
+import json
+import pandas as pd
+import yfinance as yf
+import FinanceDataReader as fdr
+from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def get_relative_volume_kr():
+    print("Fetching KR market data...")
+    # Get KOSPI/KOSDAQ list
+    krx = fdr.StockListing('KRX')
+    # Filter for larger stocks to avoid noise
+    krx = krx[krx['Marcap'] > 100000000000] # Top stocks > 100B KRW
+    
+    results = []
+    # Limit to top 100 by volume initially to find RVOL spikes
+    top_vol = krx.sort_values(by='Volume', ascending=False).head(100)
+    
+    for _, row in top_vol.iterrows():
+        symbol = row['Code']
+        name = row['Name']
+        try:
+            df = fdr.DataReader(symbol, (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+            if len(df) < 21: continue
+            
+            avg_vol = df['Volume'].iloc[:-1].tail(20).mean()
+            recent_vol = df['Volume'].iloc[-1]
+            rvol = recent_vol / avg_vol if avg_vol > 0 else 0
+            
+            results.append({
+                'symbol': symbol,
+                'name': name,
+                'price': float(df['Close'].iloc[-1]),
+                'change': float((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100),
+                'rvol': float(rvol),
+                'market': 'KR'
+            })
+        except Exception as e:
+            print(f"Error fetching {name}: {e}")
+            
+    return sorted(results, key=lambda x: x['rvol'], reverse=True)[:10]
+
+def get_relative_volume_us():
+    print("Fetching US market data...")
+    # For US, we use a pre-defined list or common high-volume tickers for demo
+    # In practice, one would use a screener API. Here we'll take top S&P 500 or similar.
+    # To keep it simple and fast, let's use a list of high-volume tech stocks
+    tickers = ['AAPL', 'TSLA', 'NVDA', 'AMD', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NFLX', 'INTC', 
+               'PYPL', 'SQ', 'COIN', 'BA', 'DIS', 'NIO', 'PLTR', 'BABA', 'JD', 'PDD']
+    
+    results = []
+    for ticker in tickers:
+        try:
+            stock = yf.Ticker(ticker)
+            df = stock.history(period='1mo')
+            if len(df) < 21: continue
+            
+            avg_vol = df['Volume'].iloc[:-1].tail(20).mean()
+            recent_vol = df['Volume'].iloc[-1]
+            rvol = recent_vol / avg_vol if avg_vol > 0 else 0
+            
+            results.append({
+                'symbol': ticker,
+                'name': ticker, # yfinance name needs another call, using ticker for speed
+                'price': float(df['Close'].iloc[-1]),
+                'change': float((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100),
+                'rvol': float(rvol),
+                'market': 'US'
+            })
+        except Exception as e:
+            print(f"Error fetching {ticker}: {e}")
+            
+    return sorted(results, key=lambda x: x['rvol'], reverse=True)[:10]
+
+def main():
+    kr_data = get_relative_volume_kr()
+    us_data = get_relative_volume_us()
+    
+    output = {
+        'timestamp': datetime.now().isoformat(),
+        'kr': kr_data,
+        'us': us_data
+    }
+    
+    os.makedirs('.tmp', exist_ok=True)
+    with open('.tmp/market_data.json', 'w', encoding='utf-8') as f:
+        json.dump(output, f, ensure_ascii=False, indent=2)
+    print("Market data saved to .tmp/market_data.json")
+
+if __name__ == "__main__":
+    main()

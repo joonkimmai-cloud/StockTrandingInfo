@@ -1,6 +1,0 @@
-name = "stock-reporter-scheduler"
-main = "index.ts"
-compatibility_date = "2024-03-01"
-
-[triggers]
-crons = ["0 21 * * *"] # 06:00 KST is 21:00 UTC

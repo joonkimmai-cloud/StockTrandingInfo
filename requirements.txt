@@ -1,0 +1,11 @@
+# Stock Trading Automation Requirements
+pandas
+yfinance
+finance-datareader
+google-generativeai
+python-dotenv
+beautifulsoup4
+requests
+supabase
+asyncio
+aiohttp

@@ -1,0 +1,24 @@
+# 작업 목록: 자동 증권 리포트 시스템 및 웹 사이트
+
+- [/] 프로젝트 초기화 및 환경 설정
+    - [ ] 디렉토리 구조 생성 (`execution/`, `directives/`, `.tmp/`)
+    - [ ] Python 환경 초기화 및 `.env` 파일 설정
+    - [ ] Supabase 프로젝트 설정 및 데이터베이스 스키마 적용
+- [ ] Layer 3: 실행 스크립트 (Python)
+    - [ ] `execution/get_stock_data.py`: 상대적 거래량(Relative Volume) 상위 10개 수집 (US/KR)
+    - [ ] `execution/get_news_and_analyze.py`: 비동기 뉴스 수집 및 매크로 지표 결합 AI 분석
+    - [ ] `execution/send_email_report.py`: 반응형 HTML 이메일 및 로깅 시스템 구현
+- [ ] Layer 1: 지시서 (SOP)
+    - [ ] `directives/stock_collection.md`
+    - [ ] `directives/ai_analysis.md`
+    - [ ] `directives/email_dispatch.md`
+- [ ] 웹 인터페이스 (Next.js + Supabase)
+    - [ ] 이메일 등록을 위한 심플한 랜딩 페이지 제작
+    - [ ] Supabase를 이용한 이메일 구독 로직 구현
+    - [ ] 리포트 표시를 위한 프리미엄 UI 디자인 (선택 사항)
+- [ ] 자동화 및 통합
+    - [ ] 매일 오전 6시(KST) 배치를 위한 GitHub Actions 또는 Cron 설정
+    - [ ] 웹 등록 이메일과 리포트 발송 리스트 연동
+- [ ] 검증 및 테스트
+    - [ ] 전체 파이프라인 테스트: 데이터 -> AI -> 이메일
+    - [ ] 웹 등록 기능 정상 작동 확인
