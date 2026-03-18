@@ -144,9 +144,18 @@
     <script>
         const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
         const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let supabaseClient;
+        
+        try {
+            console.log("Initializing Supabase Client...");
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log("Supabase Client Loaded.");
+        } catch (e) {
+            console.error("Supabase Initialization Error:", e);
+        }
 
         async function subscribe() {
+            console.log("Subscribe button clicked.");
             const emailInput = document.getElementById('email');
             const messageElement = document.getElementById('message');
             const btnText = document.getElementById('btnText');
@@ -154,36 +163,45 @@
 
             if (!email || !email.includes('@')) {
                 messageElement.innerHTML = '<span class="error">유효한 이메일 주소를 입력해 주세요.</span>';
+                console.warn("Invalid email address.");
                 return;
             }
 
-            // 구독 확인 알림창 추가
+            // 구독 확인 알림창
             const isConfirmed = confirm(`${email} 주소로 데일리 리포트를 구독하시겠습니까?`);
+            console.log("User confirmed:", isConfirmed);
             if (!isConfirmed) return;
 
-            btnText.innerText = "처리 중...";
-            btnText.disabled = true;
+            try {
+                btnText.innerText = "처리 중...";
+                btnText.disabled = true;
 
-            const { data, error } = await supabaseClient
-                .from('subscribers')
-                .insert([{ email }]);
+                console.log("Inserting subscriber into Supabase...");
+                const { data, error } = await supabaseClient
+                    .from('subscribers')
+                    .insert([{ email }]);
 
-
-            if (error) {
-                if (error.code === '23505') {
-                    messageElement.innerHTML = '<span class="success">이미 구독 중인 이메일입니다!</span>';
+                if (error) {
+                    console.error("Supabase Insert Error:", error);
+                    if (error.code === '23505') {
+                        messageElement.innerHTML = '<span class="success">이미 구독 중인 이메일입니다!</span>';
+                    } else {
+                        messageElement.innerHTML = `<span class="error">서버 오류: ${error.message}</span>`;
+                    }
                 } else {
-                    console.error(error);
-                    messageElement.innerHTML = '<span class="error">구독 중 오류가 발생했습니다.</span>';
+                    console.log("Success! Subscriber added.");
+                    messageElement.innerHTML = '<span class="success">구독 완료! 내일 아침에 뵙겠습니다.</span>';
+                    emailInput.value = '';
                 }
-            } else {
-                messageElement.innerHTML = '<span class="success">구독이 완료되었습니다. 내일 아침에 뵙겠습니다!</span>';
-                emailInput.value = '';
+            } catch (err) {
+                console.error("Fatal Error during subscription:", err);
+                messageElement.innerHTML = '<span class="error">시스템 치명적 오류가 발생했습니다.</span>';
+            } finally {
+                btnText.innerText = "무료 리포트 구독하기";
+                btnText.disabled = false;
             }
-            
-            btnText.innerText = "무료 리포트 구독하기";
-            btnText.disabled = false;
         }
     </script>
+
 </body>
 </html>
