@@ -32,7 +32,11 @@ def main():
         print("Stopping due to error in AI analysis.")
         return
 
-    # 3. Dispatch Email Reports
+    # 3. Synchronize Collected Data to Database
+    if not run_script('execution/save_to_db.py'):
+        print("Warning: Database synchronization failed.")
+
+    # 4. Dispatch Email Reports
     if not run_script('execution/send_email_report.py'):
         print("Stopping due to error in email dispatch.")
         return

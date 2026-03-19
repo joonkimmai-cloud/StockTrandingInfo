@@ -36,7 +36,11 @@ def get_relative_volume_kr():
                 'price': float(df['Close'].iloc[-1]),
                 'change': float((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100),
                 'rvol': float(rvol),
-                'market': 'KR'
+                'market': 'KR',
+                'issued_shares': int(row.get('Stocks', 0)),
+                'marcap': int(row.get('Marcap', 0)),
+                'per': float(row.get('PER', 0)) if not pd.isna(row.get('PER')) else None,
+                'pbr': float(row.get('PBR', 0)) if not pd.isna(row.get('PBR')) else None
             })
         except Exception as e:
             print(f"Error fetching {name}: {e}")
@@ -62,13 +66,18 @@ def get_relative_volume_us():
             recent_vol = df['Volume'].iloc[-1]
             rvol = recent_vol / avg_vol if avg_vol > 0 else 0
             
+            info = stock.info
             results.append({
                 'symbol': ticker,
-                'name': ticker, # yfinance name needs another call, using ticker for speed
+                'name': info.get('longName', ticker),
                 'price': float(df['Close'].iloc[-1]),
                 'change': float((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100),
                 'rvol': float(rvol),
-                'market': 'US'
+                'market': 'US',
+                'issued_shares': info.get('sharesOutstanding'),
+                'marcap': info.get('marketCap'),
+                'per': info.get('forwardPE'),
+                'pbr': info.get('priceToBook')
             })
         except Exception as e:
             print(f"Error fetching {ticker}: {e}")

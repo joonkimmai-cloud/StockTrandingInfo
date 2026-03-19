@@ -38,16 +38,27 @@ async def fetch_news_for_stock(session, stock):
             
             for item in news_items[:4]:
                 title = item.get_text()
+                # Basic link extraction if possible
+                link_tag = item.find_parent('a') or item.find('a')
+                link = link_tag['href'] if link_tag and 'href' in link_tag.attrs else "#"
+                if not link.startswith('http'):
+                    link = f"https://www.google.com{link}"
+                
                 if title:
-                    articles.append(title)
+                    articles.append({
+                        'title': title,
+                        'url': link,
+                        'source': 'Google News',
+                        'timestamp': datetime.now().isoformat()
+                    })
             
             return {
                 **stock,
-                'news': articles if articles else ["No recent news found for this target volume surge."]
+                'news': articles if articles else [{"title": "No recent news found", "url": "#", "source": "N/A"}]
             }
     except Exception as e:
         print(f"Error scraping news for {symbol}: {e}")
-        return {**stock, 'news': ["Error fetching news."]}
+        return {**stock, 'news': [{"title": "Error fetching news", "url": "#", "source": "Error"}]}
 
 async def generate_analysis(stock_data):
     prompt = f"""
@@ -125,6 +136,11 @@ async def main():
         'us': us_news
     }
     
+    # Save the raw news data before analysis for DB syncing
+    with open('.tmp/news_data.json', 'w', encoding='utf-8') as f:
+        json.dump(analysis_input, f, ensure_ascii=False, indent=2)
+    print("Raw news data saved to .tmp/news_data.json")
+
     print("Generating AI Analysis report...")
     final_report = await generate_analysis(analysis_input)
     
