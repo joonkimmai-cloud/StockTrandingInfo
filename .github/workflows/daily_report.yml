@@ -1,6 +1,9 @@
 name: Daily Stock Alpha Report
 
 on:
+  push:
+    branches:
+      - main
   schedule:
     - cron: '0 21 * * *' # 21:00 UTC = 06:00 KST
   workflow_dispatch: # Allow manual trigger
