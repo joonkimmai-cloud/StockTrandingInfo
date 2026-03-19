@@ -317,6 +317,11 @@
     </main>
 
     <script>
+        // 권한 체크: 로그인하지 않은 경우 login.html로 리다이렉트
+        if (sessionStorage.getItem('isAdmin') !== 'true') {
+            window.location.href = 'login.html';
+        }
+
         const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
         const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);

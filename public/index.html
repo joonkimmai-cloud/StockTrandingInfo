@@ -39,6 +39,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             animation: fadeIn 1s ease-out;
+            position: relative;
         }
 
         @keyframes fadeIn {
@@ -126,6 +127,29 @@
             margin-bottom: 20px;
             letter-spacing: 1px;
         }
+
+        .admin-link {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .admin-link a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: 0.3s;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: inline-block;
+        }
+
+        .admin-link a:hover {
+            color: #fff;
+            border-color: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.05);
+        }
     </style>
 </head>
 <body>
@@ -139,6 +163,10 @@
             <button onclick="subscribe()" id="btnText">무료 리포트 구독하기</button>
         </div>
         <div id="message"></div>
+
+        <div class="admin-link">
+            <a href="login.html">Admin Dashboard →</a>
+        </div>
     </div>
 
     <script>
@@ -219,3 +247,4 @@
 
 </body>
 </html>
+ Riverside
