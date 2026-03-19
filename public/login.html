@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Alpha - Admin Login</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
     <style>
         :root {
             --bg-dark: #0d1117;
@@ -40,8 +42,8 @@
         }
 
         .logo {
-            font-size: 2rem;
-            font-weight: 900;
+            font-size: 1.5rem;
+            font-weight: 800;
             background: var(--primary-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -55,7 +57,7 @@
 
         label {
             display: block;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #8b949e;
             margin-bottom: 8px;
             margin-left: 5px;
@@ -93,9 +95,14 @@
             transition: 0.3s;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(123, 47, 247, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .error-msg {
@@ -104,35 +111,93 @@
             margin-top: 15px;
             display: none;
         }
+
+        .loader {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div class="login-card">
-        <div class="logo">ADMIN LOGIN</div>
+        <div class="logo">STOCK ALPHA ADMIN</div>
         <div class="input-group">
-            <label>Admin ID</label>
-            <input type="text" id="admin-id" placeholder="관리자 아이디">
+            <label>Admin Email</label>
+            <input type="email" id="admin-id" placeholder="example@gmail.com">
         </div>
         <div class="input-group">
             <label>Password</label>
-            <input type="password" id="admin-pw" placeholder="비밀번호">
+            <input type="password" id="admin-pw" placeholder="비밀번호를 입력하세요">
         </div>
-        <button onclick="handleLogin()">로그인</button>
-        <div id="error-msg" class="error-msg">인증 정보가 올바르지 않습니다.</div>
+        <button id="login-btn" onclick="handleLogin()">
+            <span id="btn-text">관리자 로그인</span>
+            <div id="btn-loader" class="loader"></div>
+        </button>
+        <div id="error-msg" class="error-msg">인증 정보가 올바르지 않거나 시스템 오류가 발생했습니다.</div>
     </div>
 
     <script>
-        function handleLogin() {
-            const id = document.getElementById('admin-id').value;
-            const pw = document.getElementById('admin-pw').value;
-            const error = document.getElementById('error-msg');
+        const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-            // 간단한 관리자 인증 로직 (기본값 설정)
-            if (id === 'admin' && pw === 'admin1234') {
-                sessionStorage.setItem('isAdmin', 'true');
-                location.href = 'admin.html';
-            } else {
-                error.style.display = 'block';
+        async function handleLogin() {
+            const email = document.getElementById('admin-id').value;
+            const password = document.getElementById('admin-pw').value;
+            const errorEl = document.getElementById('error-msg');
+            const btnText = document.getElementById('btn-text');
+            const btnLoader = document.getElementById('btn-loader');
+            const loginBtn = document.getElementById('login-btn');
+
+            if (!email || !password) {
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            // UI Feedback
+            errorEl.style.display = 'none';
+            btnText.style.display = 'none';
+            btnLoader.style.display = 'block';
+            loginBtn.disabled = true;
+
+            try {
+                // 1. Supabase에서 해당 이메일의 유저 정보(해시 포함) 가져오기
+                const { data, error } = await supabaseClient
+                    .from('admin_users')
+                    .select('email, password_hash')
+                    .eq('email', email)
+                    .single();
+
+                if (error || !data) {
+                    throw new Error('User not found');
+                }
+
+                // 2. 패스워드 검증 (bcrypt.js 사용)
+                const isValid = dcodeIO.bcrypt.compareSync(password, data.password_hash);
+
+                if (isValid) {
+                    sessionStorage.setItem('isAdmin', 'true');
+                    sessionStorage.setItem('adminEmail', email);
+                    location.href = 'admin.html';
+                } else {
+                    throw new Error('Invalid password');
+                }
+
+            } catch (err) {
+                console.error(err);
+                errorEl.style.display = 'block';
+            } finally {
+                btnText.style.display = 'block';
+                btnLoader.style.display = 'none';
+                loginBtn.disabled = false;
             }
         }
     </script>
