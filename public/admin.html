@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Alpha - Admin Backoffice</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --sidebar-width: 260px;
+            --top-nav-height: 70px;
+            --primary-color: #7b2ff7;
+            --secondary-color: #21d4fd;
+            --bg-dark: #0d1117;
+            --sidebar-bg: #161b22;
+            --card-bg: #21262d;
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+            --border-color: #30363d;
+            --success-color: #238636;
+            --error-color: #da3633;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Top Navigation */
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--top-nav-height);
+            background: var(--sidebar-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-right: 40px;
+            cursor: pointer;
+        }
+
+        .main-menu {
+            display: flex;
+            gap: 10px;
+        }
+
+        .main-menu-item {
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .main-menu-item:hover, .main-menu-item.active {
+            color: var(--text-main);
+            background: rgba(255,255,255,0.05);
+        }
+
+        .main-menu-item.active {
+            color: var(--primary-color);
+        }
+
+        /* Sidebar (Sub Menu) */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding-top: var(--top-nav-height);
+            display: flex;
+            flex-direction: column;
+            transition: 0.3s;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sub-menu {
+            padding: 15px 0;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .sub-menu-item {
+            padding: 12px 25px;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-muted);
+        }
+
+        .sub-menu-item:hover, .sub-menu-item.active {
+            color: var(--text-main);
+            background: rgba(123, 47, 247, 0.1);
+        }
+
+        .sub-menu-item.active {
+            color: var(--primary-color);
+            border-right: 3px solid var(--primary-color);
+        }
+
+        /* Main Content Area */
+        .content-area {
+            flex-grow: 1;
+            padding-top: var(--top-nav-height);
+            background: var(--bg-dark);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content-container {
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .page-description {
+            color: var(--text-muted);
+        }
+
+        /* Dashboard Components */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .table-container {
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(255,255,255,0.03);
+            padding: 15px 20px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-pill {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-success { background: rgba(35, 134, 54, 0.2); color: #3fb950; }
+        .status-fail { background: rgba(218, 54, 51, 0.2); color: #f85149; }
+        .status-running { background: rgba(123, 47, 247, 0.2); color: var(--secondary-color); }
+
+        .btn-refresh {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-refresh:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #view-content {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav">
+        <div class="logo" onclick="location.reload()">STOCK ALPHA ADMIN</div>
+        <div class="main-menu" id="main-menu">
+            <div class="main-menu-item active" onclick="switchMainMenu('monitor')">Monitoring</div>
+            <div class="main-menu-item" onclick="switchMainMenu('data')">Data Management</div>
+            <div class="main-menu-item" onclick="switchMainMenu('users')">Subscribers</div>
+        </div>
+    </nav>
+
+    <aside class="sidebar">
+        <div class="sidebar-header" id="sidebar-title">Monitoring</div>
+        <div class="sub-menu" id="sub-menu">
+            <!-- Dynamic Submenu Items -->
+        </div>
+    </aside>
+
+    <main class="content-area">
+        <div class="content-container" id="view-content">
+            <!-- Content will be injected here -->
+            <div class="page-header">
+                <h1 class="page-title">Welcome back, Admin</h1>
+                <p class="page-description">시스템 상태와 수집된 데이터를 관리하는 백오피스입니다.</p>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">전체 구독자 수</div>
+                    <div class="stat-value" id="count-subscribers">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">수집된 기업 수</div>
+                    <div class="stat-value" id="count-companies">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">오늘의 배치 상태</div>
+                    <div class="stat-value" id="today-status">-</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const MENU_DATA = {
+            monitor: {
+                title: "Monitoring",
+                items: [
+                    { id: 'batch-summary', label: 'Batch Summary', icon: '📊' },
+                    { id: 'execution-logs', label: 'Execution Logs', icon: '📝' },
+                    { id: 'system-health', label: 'System Health', icon: '⚡' }
+                ]
+            },
+            data: {
+                title: "Data Management",
+                items: [
+                    { id: 'companies', label: 'Companies List', icon: '⬟' },
+                    { id: 'news-articles', label: 'News Articles', icon: '📰' },
+                    { id: 'ai-analysis', label: 'AI Analysis Logs', icon: '🤖' }
+                ]
+            },
+            users: {
+                title: "Subscribers",
+                items: [
+                    { id: 'subscriber-list', label: 'All Subscribers', icon: '👥' },
+                    { id: 'send-history', label: 'Dispatch History', icon: '📤' }
+                ]
+            }
+        };
+
+        let currentMainMenu = 'monitor';
+        let currentSubMenu = 'batch-summary';
+
+        function switchMainMenu(menuId) {
+            currentMainMenu = menuId;
+            document.querySelectorAll('.main-menu-item').forEach(item => {
+                item.classList.toggle('active', item.innerText.toLowerCase().includes(menuId));
+            });
+            renderSubMenu();
+        }
+
+        function renderSubMenu() {
+            const data = MENU_DATA[currentMainMenu];
+            const subMenuEl = document.getElementById('sub-menu');
+            document.getElementById('sidebar-title').innerText = data.title;
+            
+            subMenuEl.innerHTML = '';
+            data.items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `sub-menu-item ${currentSubMenu === item.id ? 'active' : ''}`;
+                div.innerHTML = `<span>${item.icon}</span> ${item.label}`;
+                div.onclick = () => {
+                    currentSubMenu = item.id;
+                    renderSubMenu(); // refresh active state
+                    loadPage(item.id);
+                };
+                subMenuEl.appendChild(div);
+            });
+        }
+
+        async function loadPage(pageId) {
+            const contentEl = document.getElementById('view-content');
+            contentEl.innerHTML = `<div class="loader" style="display:block"></div> Loading data...`;
+
+            if (pageId === 'batch-summary') {
+                const { data, error } = await supabaseClient.from('batch_summary').select('*').order('last_run_at', { ascending: false }).limit(5);
+                let html = `
+                    <div class="page-header">
+                        <h1 class="page-title">Batch Summary</h1>
+                        <p class="page-description">최근 배치 실행 요약 정보입니다.</p>
+                        <button class="btn-refresh" onclick="loadPage('batch-summary')">새로고침</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Run Time</th>
+                                    <th>Status</th>
+                                    <th>Msg</th>
+                                    <th>Success</th>
+                                    <th>Fail</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                if (data) {
+                    data.forEach(row => {
+                        html += `
+                            <tr>
+                                <td>${new Date(row.last_run_at).toLocaleString()}</td>
+                                <td><span class="status-pill status-${row.last_status.toLowerCase()}">${row.last_status}</span></td>
+                                <td>${row.summary_message}</td>
+                                <td>${row.success_count}</td>
+                                <td>${row.fail_count}</td>
+                            </tr>
+                        `;
+                    });
+                }
+                html += `</tbody></table></div>`;
+                contentEl.innerHTML = html;
+            } else if (pageId === 'execution-logs') {
+                const { data, error } = await supabaseClient.from('execution_logs').select('*').order('created_at', { ascending: false }).limit(20);
+                let html = `
+                    <div class="page-header">
+                        <h1 class="page-title">Detailed Logs</h1>
+                        <p class="page-description">각 배치 단계별 상세 로그입니다.</p>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Step</th>
+                                    <th>Status</th>
+                                    <th>Message</th>
+                                    <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                data?.forEach(row => {
+                    html += `
+                        <tr>
+                            <td>${new Date(row.created_at).toLocaleTimeString()}</td>
+                            <td>${row.step_name}</td>
+                            <td><span class="status-pill status-${row.status.toLowerCase()}">${row.status}</span></td>
+                            <td>${row.log_message} ${row.error_detail ? '<br><small style="color:var(--error-color)">' + row.error_detail.substring(0, 100) + '...</small>' : ''}</td>
+                            <td>${row.execution_time || '-'}</td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table></div>`;
+                contentEl.innerHTML = html;
+            } else if (pageId === 'companies') {
+                const { data } = await supabaseClient.from('companies').select('*').order('marcap', { ascending: false });
+                let html = `
+                    <div class="page-header">
+                        <h1 class="page-title">Collected Companies</h1>
+                        <p class="page-description">현재 DB에 수집된 주식 정보입니다.</p>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Name</th>
+                                    <th>Market</th>
+                                    <th>Marcap</th>
+                                    <th>PER/PBR</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                data?.forEach(row => {
+                    html += `
+                        <tr>
+                            <td><strong>${row.symbol}</strong></td>
+                            <td>${row.name}</td>
+                            <td>${row.market}</td>
+                            <td>${row.marcap ? (row.marcap / 100000000).toFixed(1) + '억' : '-'}</td>
+                            <td>${row.per || '-'}/${row.pbr || '-'}</td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table></div>`;
+                contentEl.innerHTML = html;
+            } else if (pageId === 'subscriber-list') {
+                const { data } = await supabaseClient.from('subscribers').select('*').order('created_at', { ascending: false });
+                let html = `
+                    <div class="page-header">
+                        <h1 class="page-title">Subscribers</h1>
+                        <p class="page-description">리포트를 구독 중인 사용자 명단입니다.</p>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Subscribed At</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                data?.forEach(row => {
+                    html += `
+                        <tr>
+                            <td>${row.email}</td>
+                            <td>${new Date(row.created_at).toLocaleDateString()}</td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table></div>`;
+                contentEl.innerHTML = html;
+            } else {
+                contentEl.innerHTML = `<div class="page-header"><h1 class="page-title">${pageId}</h1><p>해당 메뉴의 데이터 로딩 로직을 구현 중입니다.</p></div>`;
+            }
+        }
+
+        async function updateDashboardStats() {
+            const { count: subCount } = await supabaseClient.from('subscribers').select('*', { count: 'exact', head: true });
+            const { count: compCount } = await supabaseClient.from('companies').select('*', { count: 'exact', head: true });
+            const { data: lastBatch } = await supabaseClient.from('batch_summary').select('last_status').order('last_run_at', { ascending: false }).limit(1).single();
+
+            document.getElementById('count-subscribers').innerText = subCount || 0;
+            document.getElementById('count-companies').innerText = compCount || 0;
+            if (lastBatch) {
+                const status = lastBatch.last_status;
+                document.getElementById('today-status').innerHTML = `<span class="status-pill status-${status.toLowerCase()}">${status}</span>`;
+            }
+        }
+
+        // Initialize
+        renderSubMenu();
+        updateDashboardStats();
+    </script>
+</body>
+</html>
