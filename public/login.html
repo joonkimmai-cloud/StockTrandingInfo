@@ -181,7 +181,9 @@
                 }
 
                 // 2. 패스워드 검증 (bcrypt.js 사용)
-                const isValid = dcodeIO.bcrypt.compareSync(password, data.password_hash);
+                // cdn 버전은 dcodeIO 객체 없이 전역 bcrypt 객체를 생성하기도 합니다.
+                const bCryptLib = (typeof dcodeIO !== 'undefined') ? dcodeIO.bcrypt : bcrypt;
+                const isValid = bCryptLib.compareSync(password, data.password_hash);
 
                 if (isValid) {
                     sessionStorage.setItem('isAdmin', 'true');
