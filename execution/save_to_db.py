@@ -3,6 +3,8 @@ import json
 import requests
 from dotenv import load_dotenv
 from datetime import datetime
+from zoneinfo import ZoneInfo
+KST = ZoneInfo('Asia/Seoul')
 
 load_dotenv()
 
@@ -48,7 +50,7 @@ def save_to_supabase():
             "marcap": stock.get('marcap'),
             "per": stock.get('per'),
             "pbr": stock.get('pbr'),
-            "updated_at": datetime.now().isoformat()
+            "updated_at": datetime.now(KST).isoformat()
         }
         
         comp_resp = requests.post(
@@ -79,7 +81,7 @@ def save_to_supabase():
                             "title": article['title'],
                             "source_url": article.get('url'),
                             "content": f"Source: {article.get('source', 'Google News')}",
-                            "published_at": article.get('timestamp', datetime.now().isoformat())
+                            "published_at": article.get('timestamp', datetime.now(KST).isoformat())
                         }
                         # Simple insert for news (could check for duplicates by title if needed)
                         requests.post(

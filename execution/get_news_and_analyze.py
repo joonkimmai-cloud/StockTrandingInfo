@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 import google.generativeai as genai
 from dotenv import load_dotenv
 from datetime import datetime
+from zoneinfo import ZoneInfo
+KST = ZoneInfo('Asia/Seoul')
 
 load_dotenv()
 
@@ -18,49 +20,55 @@ async def fetch_news_for_stock(session, stock):
     name = stock['name']
     market = stock['market']
     
-    # Simple Google News search URL
-    query = f"{name} {symbol} stock news"
-    url = f"https://www.google.com/search?q={query}&tbm=nws"
+    # Google News search URL with Disclosure/Filing keywords
+    # Search for last 24h first
+    query = f"{name} {symbol} stock news disclosure"
+    url_24h = f"https://www.google.com/search?q={query}&tbm=nws&tbs=qdr:d"
+    url_28h = f"https://www.google.com/search?q={query}&tbm=nws&tbs=qdr:h28"
     
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     
-    try:
-        async with session.get(url, headers=headers) as response:
+    async def get_articles(target_url, period_label):
+        async with session.get(target_url, headers=headers) as response:
             html = await response.text()
             soup = BeautifulSoup(html, 'html.parser')
-            
-            articles = []
-            # This selector is a common patterns but search results change often
-            # We'll take the first 4 results that look like news items
-            news_items = soup.select('div.So0oBc, div.BNeawe.vvv07z.AP7Wnd') # Basic fallback selectors
-            
-            for item in news_items[:4]:
+            items = soup.select('div.So0oBc, div.BNeawe.vvv07z.AP7Wnd')
+            results = []
+            for item in items[:4]:
                 title = item.get_text()
-                # Basic link extraction if possible
                 link_tag = item.find_parent('a') or item.find('a')
                 link = link_tag['href'] if link_tag and 'href' in link_tag.attrs else "#"
-                if not link.startswith('http'):
-                    link = f"https://www.google.com{link}"
-                
+                if not link.startswith('http'): link = f"https://www.google.com{link}"
                 if title:
-                    articles.append({
-                        'title': title,
-                        'url': link,
-                        'source': 'Google News',
-                        'timestamp': datetime.now().isoformat()
-                    })
-            
-            return {
-                **stock,
-                'news': articles if articles else [{"title": "No recent news found", "url": "#", "source": "N/A"}]
-            }
+                    results.append({'title': title, 'url': link, 'source': 'Google News', 'timestamp': datetime.now(KST).isoformat()})
+            return results
+
+    try:
+        print(f"  [2단계] {name}({symbol}) 뉴스 및 공시 수집 중 (24시간 내)...")
+        articles = await get_articles(url_24h, "24h")
+        period = "24시간"
+
+        if not articles:
+            print(f"  [2단계] {name} 24시간 내 기사 없음. 28시간 범위로 재시도...")
+            articles = await get_articles(url_28h, "28h")
+            period = "28시간"
+        
+        status = "success" if articles else "no_news_found"
+        print(f"  [2단계] {name}({symbol}) 뉴스 기사 수집 완료 ({period}).")
+        return {
+            **stock,
+            'news': articles if articles else [{"title": f"** {period} 동안의 관련 기사 및 공시 없음", "url": "#", "source": "N/A"}],
+           'news_status': status,
+            'period': period
+        }
     except Exception as e:
         print(f"Error scraping news for {symbol}: {e}")
         return {**stock, 'news': [{"title": "Error fetching news", "url": "#", "source": "Error"}]}
 
 async def generate_analysis(stock_data):
+    print("[3단계] AI 분석 리포트 생성 시작...")
     prompt = f"""
     당신은 세계적인 시니어 투자 전략가이자 경제학자입니다. 
     최근 전날 대비 거래량이 급증한(Relative Volume) 한국 및 미국 주식 정보를 바탕으로 리포트를 작성해 주세요.
@@ -143,7 +151,7 @@ async def main():
 
     print("Generating AI Analysis report...")
     final_report = await generate_analysis(analysis_input)
-    
+    print("[3단계] AI 분석 리포트 생성 종료")
     with open('.tmp/report.json', 'w', encoding='utf-8') as f:
         json.dump(final_report, f, ensure_ascii=False, indent=2)
     

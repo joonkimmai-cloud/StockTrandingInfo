@@ -4,6 +4,8 @@ import pandas as pd
 import yfinance as yf
 import FinanceDataReader as fdr
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+KST = ZoneInfo('Asia/Seoul')
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,7 +25,7 @@ def get_relative_volume_kr():
         symbol = row['Code']
         name = row['Name']
         try:
-            df = fdr.DataReader(symbol, (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+            df = fdr.DataReader(symbol, (datetime.now(KST) - timedelta(days=30)).strftime('%Y-%m-%d'))
             if len(df) < 21: continue
             
             avg_vol = df['Volume'].iloc[:-1].tail(20).mean()
@@ -85,11 +87,15 @@ def get_relative_volume_us():
     return sorted(results, key=lambda x: x['rvol'], reverse=True)[:10]
 
 def main():
+    print("[1단계] 전일 주식시장에서 종목 추출 시작 (한국, 미국)")
     kr_data = get_relative_volume_kr()
+    print(f"  - 한국 시장 {len(kr_data)}개 종목 추출 완료")
     us_data = get_relative_volume_us()
+    print(f"  - 미국 시장 {len(us_data)}개 종목 추출 완료")
+    print("[1단계] 종목 추출 종료")
     
     output = {
-        'timestamp': datetime.now().isoformat(),
+       'timestamp': datetime.now(KST).isoformat(),
         'kr': kr_data,
         'us': us_data
     }

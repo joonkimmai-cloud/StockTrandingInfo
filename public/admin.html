@@ -3,588 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Alpha - Admin Backoffice</title>
+    <!-- 페이지 탭에 보이는 제목 -->
+    <title>Stock Alpha - 관리자 화면(Admin Backoffice)</title>
+    
+    <!-- 예쁜 폰트 (Pretendard) 원격에서 불러오기 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    
+    <!-- Supabase (데이터베이스) 통신을 위한 라이브러리. 이 라이브러리가 있어야 서버에서 내 데이터를 가져옵니다. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --sidebar-width: 260px;
-            --top-nav-height: 56px;
-            --primary-blue: #0051C3;
-            --bg-light: #F7F9FB;
-            --sidebar-bg: #FFFFFF;
-            --border-color: #E0E0E0;
-            --text-dark: #212121;
-            --text-muted: #4F4F4F;
-            --success-color: #238636;
-            --error-color: #da3633;
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-            background-color: var(--bg-light);
-            color: var(--text-dark);
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--sidebar-bg);
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            z-index: 100;
-        }
-
-        .sidebar-logo {
-            height: var(--top-nav-height);
-            display: flex;
-            align-items: center;
-            padding: 0 24px;
-            font-weight: 800;
-            font-size: 1.1rem;
-            color: var(--primary-blue);
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .sidebar-menu {
-            padding: 16px 0;
-            flex-grow: 1;
-            overflow-y: auto;
-        }
-
-        .menu-group-title {
-            padding: 16px 24px 8px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #999;
-            font-weight: 700;
-        }
-
-        .menu-item {
-            padding: 10px 24px;
-            cursor: pointer;
-            transition: 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            border-left: 3px solid transparent;
-        }
-
-        .menu-item:hover {
-            background: #F0F4FA;
-            color: var(--primary-blue);
-        }
-
-        .menu-item.active {
-            background: #F0F4FA;
-            color: var(--primary-blue);
-            border-left-color: var(--primary-blue);
-            font-weight: 600;
-        }
-
-        /* Main Area */
-        .main-wrapper {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .top-bar {
-            height: var(--top-nav-height);
-            background: #FFFFFF;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            padding: 0 32px;
-            justify-content: space-between;
-        }
-
-        .breadcrumbs {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
-
-        .breadcrumbs span { color: var(--text-dark); font-weight: 600; }
-
-        .content-scroll {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 32px;
-        }
-
-        .content-container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .page-header { margin-bottom: 24px; }
-        .page-title { font-size: 1.75rem; font-weight: 700; margin: 0 0 8px 0; }
-        .page-desc { color: var(--text-muted); font-size: 0.95rem; }
-
-        /* Modern Cards */
-        .card {
-            background: #FFFFFF;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 24px;
-            margin-bottom: 24px;
-        }
-
-        .card-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-
-        .stat-box {
-            background: #FFFFFF;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 24px;
-        }
-
-        .stat-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
-        .stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); }
-
-        /* Tables CLOUDFLARE STYLE */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th {
-            padding: 12px 16px;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            color: var(--text-muted);
-            border-bottom: 1px solid var(--border-color);
-            font-weight: 600;
-        }
-
-        td {
-            padding: 16px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 0.9rem;
-        }
-
-        tr:hover td { background: #fafafa; }
-
-        /* Utility */
-        .btn-blue {
-            background: var(--primary-blue);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .status-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-        .status-dot.success { background: #238636; }
-        .status-dot.fail { background: #da3633; }
-        .status-dot.running { background: #0051C3; }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-content {
-            background: #fff;
-            width: 100%;
-            max-width: 600px;
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 12px;
-        }
-        .log-window {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 15px;
-            border-radius: 4px;
-            height: 300px;
-            overflow-y: auto;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.85rem;
-            line-height: 1.4;
-            white-space: pre-wrap;
-        }
-        .modal-footer {
-            margin-top: 20px;
-            text-align: right;
-        }
-        .loader {
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid var(--primary-blue);
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-        }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        .btn-run-batch {
-            background: #238636;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: 0.2s;
-        }
-        .btn-run-batch:hover { background: #2ea043; }
-        .btn-run-batch:disabled { background: #8b949e; cursor: not-allowed; }
-    </style>
+    
+    <!-- (중요) 디자인 설정. 긴 기존 style 태그의 코드를 css/admin.css 파일로 쪼개어 연결 -->
+    <link rel="stylesheet" href="./css/admin.css">
+    
 </head>
 <body>
+    
+    <!-- ==============================================
+         영역 1: 좌측 메뉴 (Sidebar DIV)
+         관리자가 이동하고 싶은 페이지를 클릭할 수 있는 공간
+         ============================================== -->
     <aside class="sidebar">
+        <!-- 브랜드 로고 -->
         <div class="sidebar-logo">STOCK ALPHA</div>
+        <!-- 실제 클릭 가능한 메뉴들 -->
         <div class="sidebar-menu">
-            <div class="menu-group-title">Monitoring</div>
-            <div class="menu-item active" id="nav-batch-summary">Batch Summary</div>
-            <div class="menu-item" id="nav-execution-logs">Execution Logs</div>
+            <!-- 모니터링 메뉴 그룹 (작동 상태 확인용) -->
+            <div class="menu-group-title">Monitoring (모니터링)</div>
+            <div class="menu-item active" id="nav-batch-summary">Batch Summary (배치 요약)</div>
+            <div class="menu-item" id="nav-execution-logs">Execution Logs (실행 로그)</div>
             
-            <div class="menu-group-title">Data</div>
-            <div class="menu-item" id="nav-companies">Companies List</div>
-            <div class="menu-item" id="nav-news-articles">News Articles</div>
+            <!-- 데이터 관리 메뉴 그룹 -->
+            <div class="menu-group-title">Data (데이터 관리)</div>
+            <div class="menu-item" id="nav-companies">Companies List (관심 기업들)</div>
+            <!--<div class="menu-item" id="nav-news-articles">News Articles (현재 숨김 처리)</div>-->
             
-            <div class="menu-group-title">Users</div>
-            <div class="menu-item" id="nav-subscriber-list">All Subscribers</div>
+            <!-- 사용자 관리 메뉴 그룹 -->
+            <div class="menu-group-title">Users (사용자)</div>
+            <div class="menu-item" id="nav-subscriber-list">All Subscribers (모든 구독자)</div>
         </div>
     </aside>
 
+    <!-- ==============================================
+         화면 우측 전체 (상단 바 + 내용 영역)를 감싸는 DIV
+         ============================================== -->
     <div class="main-wrapper">
+        
+        <!-- 영역 2: 상단 네비게이터 (Top Bar DIV) -->
         <header class="top-bar">
-            <div class="breadcrumbs">Admin > <span id="nav-path">Monitoring</span></div>
+            <!-- 사용자가 현재 어디에 위치해 있는지 텍스트로 보여주기 -->
+            <div class="breadcrumbs">
+                Admin (관리자) > <span id="nav-path">Monitoring</span>
+            </div>
+            
+            <!-- 로그아웃 (나가기) 버튼 -->
             <div>
-                <button class="btn-blue" style="background:#f0f0f0; color:#333; border: 1px solid #ddd;" onclick="sessionStorage.clear(); window.location.href='login.html';">Logout</button>
+                <button id="logout-btn" class="btn-blue" style="background:#f0f0f0; color:#333; border: 1px solid #ddd;">
+                    로그아웃 (Logout)
+                </button>
             </div>
         </header>
 
-        <!-- Batch Modal -->
-        <div id="batch-modal" class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 style="margin:0; font-size:1.25rem;">Batch Execution Status</h2>
-                    <button id="close-modal-x" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
-                </div>
-                <div id="modal-status-text" style="margin-bottom:10px; font-weight:600; color:var(--primary-blue);">Initializing...</div>
-                <div id="modal-log-window" class="log-window"></div>
-                <div class="modal-footer">
-                    <button id="modal-ok-btn" class="btn-blue" style="display:none;">Close & Refresh</button>
-                </div>
-            </div>
-        </div>
-
+        <!-- 영역 3: 내용이 들어가는 부분 (Content DIV) 
+             왼쪽 메뉴를 클릭할 때마다 이곳의 내용(main-content)이 통째로 
+             아까 우리가 js 파일로 나눈 로직에 맞게 갈아끼워집니다. -->
         <main class="content-scroll">
             <div class="content-container" id="main-content">
-                <!-- Content will be injected here -->
+                <!-- Javascript(자바스크립트) 파일의 각 함수들이 
+                     이 사이에 테이블이나 텍스트를 만들어 넣습니다! -->
             </div>
         </main>
+        
     </div>
 
-    <script>
-        // Use global scope for functions to keep it simple and avoid module scoping issues
-        if (sessionStorage.getItem('isAdmin') !== 'true') { window.location.href = 'login.html'; }
+    <!-- ==============================================
+         추가 영역: 알림창/팝업 (Modal DIV)
+         배치 버튼을 누르거나 과거 로그를 클릭했을때 화면 전제로 나타나는 팝업
+         기본적으로 관리자 눈에는 보이지 않게 감춰져 있습니다(display:none 추가)
+         ============================================== -->
+    <div id="batch-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <!-- 팝업창 상단 -->
+            <div class="modal-header">
+                <h2 style="margin:0; font-size:1.25rem;">Batch Execution Status (작업 상태 모니터)</h2>
+                <!-- 팝업창 끄기 X 버튼 -->
+                <button id="close-modal-x" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            
+            <!-- 현재 무슨 일이 일어나고 있는지 알려주는 짧은 글 (예: 초기화 중..., 작업 실패!) -->
+            <div id="modal-status-text" style="margin-bottom:10px; font-weight:600; color:var(--primary-blue);">
+                Initializing...
+            </div>
+            
+            <!-- 해커/개발자 화면 처럼 까만 창에 실제 진행 결과나 과거 일기가 찍히는 곳 -->
+            <div id="modal-log-window" class="log-window"></div>
+            
+            <!-- 팝업창 하단의 버튼들 -->
+            <div class="modal-footer">
+                <!-- 진짜 '실행' 하라고 지시를 내리는 버튼 -->
+                <button id="modal-start-btn" class="btn-blue" style="background:#238636;">지금 바로 실행(Start Batch)</button>
+                <!-- 다 끝났을 때 나오는 '닫기' 버튼 (처음엔 안 보이다가 끝날때 나타납니다) -->
+                <button id="modal-ok-btn" class="btn-blue" style="display:none;">닫기 및 새로고침</button>
+            </div>
+        </div>
+    </div>
 
-        const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <!-- ==============================================
+         기존에 여기에 있던 긴 자바스크립트는 
+         최종적으로 쪼개서 분리한 메인 파일(js/admin.js)로 연동합니다.
+         ! type="module" 옵션을 줘야 import / export 같은 최신 기능이 동작합니다 !
+         ============================================== -->
+    <script type="module" src="./js/admin.js"></script>
 
-        let currentPageId = 'batch-summary';
-
-        // Navigation event listeners
-        document.getElementById('nav-batch-summary').addEventListener('click', () => navTo('batch-summary', 'Monitoring'));
-        document.getElementById('nav-execution-logs').addEventListener('click', () => navTo('execution-logs', 'Monitoring'));
-        document.getElementById('nav-companies').addEventListener('click', () => navTo('companies', 'Data Management'));
-        document.getElementById('nav-subscriber-list').addEventListener('click', () => navTo('subscriber-list', 'Subscribers'));
-        
-        // Modal closure listeners
-        document.getElementById('close-modal-x').addEventListener('click', closeModal);
-        document.getElementById('modal-ok-btn').addEventListener('click', closeModal);
-
-        function navTo(pageId, groupName) {
-            currentPageId = pageId;
-            document.getElementById('nav-path').innerText = groupName;
-            document.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.remove('active');
-                if (item.id === `nav-${pageId}`) item.classList.add('active');
-            });
-            loadPage(pageId);
-        }
-
-        async function loadPage(pageId) {
-            const contentEl = document.getElementById('main-content');
-            contentEl.innerHTML = `<div style="padding: 40px; text-align: center;"><div class="loader"></div> Loading data...</div>`;
-
-            if (pageId === 'batch-summary') {
-                const { data } = await supabaseClient.from('batch_summary').select('*').order('last_run_at', { ascending: false }).limit(10);
-                contentEl.innerHTML = `
-                    <div class="page-header">
-                        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
-                            <div>
-                                <h1 class="page-title">Batch Summary</h1>
-                                <p class="page-desc">최근 10건의 배치 실행 기록입니다.</p>
-                            </div>
-                            <button id="run-batch-btn" class="btn-run-batch">
-                                <span id="run-btn-text">Run Batch Now</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Run Time</th>
-                                    <th>Status</th>
-                                    <th>Summary</th>
-                                    <th>Success/Fail</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data?.map(row => `
-                                    <tr>
-                                        <td style="color:var(--text-muted)">${new Date(row.last_run_at).toLocaleString()}</td>
-                                        <td><span class="status-dot ${row.last_status ? row.last_status.toLowerCase() : 'fail'}"></span><b>${row.last_status || 'UNKNOWN'}</b></td>
-                                        <td>${row.summary_message || '-'}</td>
-                                        <td>${row.success_count || 0} / ${row.fail_count || 0}</td>
-                                    </tr>
-                                `).join('') || '<tr><td colspan="4">No data available</td></tr>'}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                // Add event listener to the newly created button
-                const btn = document.getElementById('run-batch-btn');
-                if (btn) btn.addEventListener('click', handleRunBatch);
-                checkBatchStatus();
-            } else if (pageId === 'execution-logs') {
-                const { data } = await supabaseClient.from('execution_logs').select('*').order('created_at', { ascending: false }).limit(30);
-                contentEl.innerHTML = `
-                    <div class="page-header">
-                        <h1 class="page-title">Execution Logs</h1>
-                        <p class="page-desc">단계별 상세 실행 로그 (최근 30개)</p>
-                    </div>
-                    <div class="card">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>Step</th>
-                                    <th>Status</th>
-                                    <th>Message</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data?.map(row => `
-                                    <tr>
-                                        <td style="color:var(--text-muted); font-size: 0.8rem;">${new Date(row.created_at).toLocaleTimeString()}</td>
-                                        <td style="font-weight:600">${row.step_name}</td>
-                                        <td><span class="status-dot ${row.status.toLowerCase()}"></span>${row.status}</td>
-                                        <td style="font-size:0.85rem">${row.log_message}</td>
-                                    </tr>
-                                `).join('') || '<tr><td colspan="4">No logs available</td></tr>'}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            } else if (pageId === 'companies') {
-                const { data } = await supabaseClient.from('companies').select('*').order('marcap', { ascending: false });
-                contentEl.innerHTML = `
-                    <div class="page-header">
-                        <h1 class="page-title">Collected Companies</h1>
-                        <p class="page-desc">현재 수집된 기업 목록 및 주요 지표</p>
-                    </div>
-                    <div class="card">
-                        <table>
-                            <thead>
-                                <tr><th>Symbol</th><th>Name</th><th>Marcap</th><th>PER/PBR</th></tr>
-                            </thead>
-                            <tbody>
-                                ${data?.map(row => `
-                                    <tr>
-                                        <td><b>${row.symbol}</b></td>
-                                        <td>${row.name}</td>
-                                        <td style="color:var(--primary-blue)">${row.marcap ? (row.marcap / 100000000).toFixed(1) + '억' : '-'}</td>
-                                        <td>${row.per || '-'}/${row.pbr || '-'}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            } else if (pageId === 'subscriber-list') {
-                const { data } = await supabaseClient.from('subscribers').select('*').order('created_at', { ascending: false });
-                contentEl.innerHTML = `
-                    <div class="page-header">
-                        <h1 class="page-title">Subscribers</h1>
-                        <p class="page-desc">뉴스레터 구독자 관리</p>
-                    </div>
-                    <div class="card">
-                        <table>
-                            <thead>
-                                <tr><th>Email Address</th><th>Status</th><th>Joined Date</th></tr>
-                            </thead>
-                            <tbody>
-                                ${data?.map(row => `
-                                    <tr>
-                                        <td style="font-weight:600">${row.email}</td>
-                                        <td>Active</td>
-                                        <td style="color:var(--text-muted)">${new Date(row.created_at).toLocaleDateString()}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-            }
-        }
-
-        async function handleRunBatch() {
-            const modal = document.getElementById('batch-modal');
-            const logWin = document.getElementById('modal-log-window');
-            const statusText = document.getElementById('modal-status-text');
-            const okBtn = document.getElementById('modal-ok-btn');
-            const closeBtn = document.getElementById('close-modal-x');
-
-            modal.style.display = 'flex';
-            logWin.innerHTML = '> Batch start request sent...\n';
-            statusText.innerText = 'Batch in Progress...';
-            statusText.style.color = 'var(--primary-blue)';
-            okBtn.style.display = 'none';
-            closeBtn.style.display = 'none';
-
-            try {
-                const response = await fetch('http://localhost:5000/run-batch', { method: 'POST' });
-                const result = await response.json();
-                
-                logWin.innerHTML += `> ${result.message}\n`;
-                pollBatchStatus();
-            } catch (err) {
-                logWin.innerHTML += `> ERROR: API 서버가 실행 중이지 않습니다. (Port 5000 확인)\n`;
-                statusText.innerText = 'Execution Failed';
-                statusText.style.color = 'var(--error-color)';
-                okBtn.style.display = 'block';
-                closeBtn.style.display = 'block';
-            }
-        }
-
-        async function pollBatchStatus() {
-            const logWin = document.getElementById('modal-log-window');
-            const statusText = document.getElementById('modal-status-text');
-            const okBtn = document.getElementById('modal-ok-btn');
-            const closeBtn = document.getElementById('close-modal-x');
-
-            try {
-                const response = await fetch('http://localhost:5000/batch-status');
-                const status = await response.json();
-
-                if (status.is_running) {
-                    statusText.innerText = 'Batch in Progress...';
-                    setTimeout(pollBatchStatus, 2000);
-                } else {
-                    if (status.last_output && (status.last_output.toLowerCase().includes('failed') || status.last_output.toLowerCase().includes('error'))) {
-                        statusText.innerText = 'Batch Completed with ERRORS';
-                        statusText.style.color = 'var(--error-color)';
-                    } else {
-                        statusText.innerText = 'Batch Successfully Completed';
-                        statusText.style.color = '#238636';
-                    }
-                    
-                    logWin.innerHTML += `\n--- FINAL OUTPUT ---\n${status.last_output || 'No output recorded.'}`;
-                    logWin.scrollTop = logWin.scrollHeight;
-                    okBtn.style.display = 'block';
-                    closeBtn.style.display = 'block';
-                }
-            } catch (err) {
-                console.error("Polling error:", err);
-            }
-        }
-
-        function closeModal() {
-            document.getElementById('batch-modal').style.display = 'none';
-            loadPage(currentPageId);
-        }
-
-        function checkBatchStatus() {
-            fetch('http://localhost:5000/batch-status')
-                .then(res => res.json())
-                .then(status => {
-                    const btn = document.getElementById('run-batch-btn');
-                    if (btn) {
-                        if (status.is_running) {
-                            btn.disabled = true;
-                            btn.innerText = 'In Progress...';
-                        } else {
-                            btn.disabled = false;
-                            btn.innerText = 'Run Batch Now';
-                        }
-                    }
-                }).catch(() => {});
-        }
-
-        async function initDashboard() {
-            try {
-                const { count: subCount } = await supabaseClient.from('subscribers').select('*', { count: 'exact', head: true });
-                const { count: compCount } = await supabaseClient.from('companies').select('*', { count: 'exact', head: true });
-                document.getElementById('count-subscribers').innerText = subCount || 0;
-                document.getElementById('count-companies').innerText = compCount || 0;
-            } catch(e) {}
-            loadPage('batch-summary');
-        }
-
-        initDashboard();
-    </script>
 </body>
 </html>

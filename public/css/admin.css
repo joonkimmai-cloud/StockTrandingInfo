@@ -1,0 +1,337 @@
+/* ====================================================
+   관리자 페이지 전용 스타일 시트 (Admin specific styles)
+==================================================== */
+
+/* 전역 변수 설정 (색상, 크기 등을 변수로 관리) */
+:root {
+    --sidebar-width: 260px; /* 좌측 메뉴(사이드바) 너비 */
+    --top-nav-height: 56px; /* 상단 네비게이터 높이 */
+    --primary-blue: #0051C3; /* 메인 브랜드 색상 (파란색) */
+    --bg-light: #F7F9FB; /* 전체 배경색 (밝은 회색) */
+    --sidebar-bg: #FFFFFF; /* 사이드바 배경색 (흰색) */
+    --border-color: #E0E0E0; /* 테두리 색상 */
+    --text-dark: #212121; /* 기본 텍스트 색상 (진한 회색) */
+    --text-muted: #4F4F4F; /* 보조 텍스트 색상 (중간 회색) */
+    --success-color: #238636; /* 성공을 나타내는 색상 (녹색) */
+    --error-color: #da3633; /* 에러를 나타내는 색상 (빨간색) */
+}
+
+/* 모든 요소의 박스 크기를 테두리 기준으로 설정하여 크기 계산을 쉽게 함 */
+* { box-sizing: border-box; }
+
+/* 기본 바디 설정 */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    display: flex; /* 화면을 좌(사이드바) - 우(본문)로 나누기 위해 flex 사용 */
+    height: 100vh; /* 화면 높이를 브라우저 전체 높이로 고정 */
+    overflow: hidden; /* 전체 페이지에서 스크롤이 안 생기게 함 */
+}
+
+/* =======================================
+   섹션 1: 좌측 메뉴 (Sidebar)
+======================================= */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color); /* 오른쪽 테두리 */
+    display: flex;
+    flex-direction: column; /* 세로 방향으로 정렬 */
+    z-index: 100;
+}
+
+/* 사이드바 상단 로고 영역 */
+.sidebar-logo {
+    height: var(--top-nav-height);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--primary-blue);
+    border-bottom: 1px solid var(--border-color); /* 하단 테두리 */
+}
+
+/* 메뉴 리스트 스크롤 영역 */
+.sidebar-menu {
+    padding: 16px 0;
+    flex-grow: 1; /* 남은 공간을 모두 차지함 */
+    overflow-y: auto; /* 메뉴가 길어지면 내부 스크롤 발생 */
+}
+
+/* 메뉴 그룹의 제목 (예: Monitoring, Data 등) */
+.menu-group-title {
+    padding: 16px 24px 8px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #999;
+    font-weight: 700;
+}
+
+/* 각각의 메뉴 버튼 */
+.menu-item {
+    padding: 10px 24px;
+    cursor: pointer;
+    transition: 0.2s; /* 호버 시 스무스한 전환 효과 */
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    border-left: 3px solid transparent; /* 기본적으로 투명한 왼쪽 테두리 */
+}
+
+/* 메뉴 호버 (마우스 올렸을 때) 효과 */
+.menu-item:hover {
+    background: #F0F4FA;
+    color: var(--primary-blue);
+}
+
+/* 활성화된 (현재 선택된) 메뉴 스타일 */
+.menu-item.active {
+    background: #F0F4FA;
+    color: var(--primary-blue);
+    border-left-color: var(--primary-blue); /* 왼쪽 테두리가 파란색으로 나타남 */
+    font-weight: 600;
+}
+
+/* =======================================
+   섹션 2: 상단 네비게이터 및 내용 영역
+======================================= */
+/* 우측 본문 전체를 감싸는 영역 */
+.main-wrapper {
+    flex-grow: 1; /* 우측 공간을 모두 차지함 */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* 상단 네비게이터 바 (Breadcrumbs와 로그아웃 버튼 포함) */
+.top-bar {
+    height: var(--top-nav-height);
+    background: #FFFFFF;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    padding: 0 32px;
+    justify-content: space-between; /* 양 끝으로 요소들을 떨어뜨림 */
+}
+
+/* 현재 위치를 보여주는 브레드크럼 (예: Admin > Monitoring) */
+.breadcrumbs {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.breadcrumbs span { 
+    color: var(--text-dark); 
+    font-weight: 600; 
+}
+
+/* 페이지 내용 영역 (스크롤 가능하게 처리) */
+.content-scroll {
+    flex-grow: 1;
+    overflow-y: auto; /* 페이지 안의 내용이 길면 여기서 스크롤 됨 */
+    padding: 32px;
+}
+
+/* 컨텐츠 내부 중앙 정렬 컨테이너 */
+.content-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* =======================================
+   페이지 내부 세부 구성요소 (컴포넌트) 스타일
+======================================= */
+
+/* 각 페이지 상단의 제목 부분 */
+.page-header { margin-bottom: 24px; }
+.page-title { font-size: 1.75rem; font-weight: 700; margin: 0 0 8px 0; }
+.page-desc { color: var(--text-muted); font-size: 0.95rem; }
+
+/* 데이터를 담는 흰색 카드 배경 */
+.card {
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 대시보드 상단 통계 숫자들을 표시하는 격자 레이아웃 (추가 예정) */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.stat-box {
+    background: #FFFFFF;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 24px;
+}
+
+.stat-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+.stat-value { font-size: 1.5rem; font-weight: 700; color: var(--text-dark); }
+
+/* 표(Table) 스타일 - 깔끔한 Cloudflare 스타일 적용 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th {
+    padding: 12px 16px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+}
+
+td {
+    padding: 16px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+}
+
+/* 표의 열(row)에 마우스를 올렸을 때 배경색 변경 */
+tr:hover td { background: #fafafa; }
+
+/* 표 내부 클릭 가능한 행을 위한 스타일 */
+.clickable-row {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.clickable-row:hover {
+    background: #f5f8ff !important;
+}
+
+/* =======================================
+   유틸리티(Buttons, States, Loaders 등)
+======================================= */
+
+/* 기본 파란색 버튼 */
+.btn-blue {
+    background: var(--primary-blue);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+/* 상태를 나타내는 동그라미 (점) */
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+.status-dot.success { background: var(--success-color); } /* 성공: 녹색 */
+.status-dot.fail { background: var(--error-color); } /* 실패: 빨간색 */
+.status-dot.running { background: var(--primary-blue); } /* 진행중: 파란색 */
+
+/* 배치 즉시 실행 버튼 스타일 (녹색 느낌) */
+.btn-run-batch {
+    background: var(--success-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.2s;
+}
+.btn-run-batch:hover { background: #2ea043; } /* 호버 시 약간 밝은 녹색 */
+.btn-run-batch:disabled { background: #8b949e; cursor: not-allowed; } /* 활성화되지 않았을 때 (회색) */
+
+/* 데이터 로딩 인디케이터 (회전하는 애니메이션) */
+.loader {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid var(--primary-blue);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* =======================================
+   모달 (Modal) 관리용 스타일 - 로그 모달 등에 쓰임
+======================================= */
+/* 배경 반투명 오버레이 */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: none; /* 기본적으로는 가려둠 (JavaScript에서 flex로 켬) */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+/* 모달 본체 */
+.modal-content {
+    background: #fff;
+    width: 100%;
+    max-width: 600px;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+/* 모달 헤더 (제목 영역) */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 12px;
+}
+/* 모달 내의 까만 터미널 느낌의 로그 창 */
+.log-window {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 15px;
+    border-radius: 4px;
+    height: 300px;
+    overflow-y: auto;
+    font-family: 'Courier New', Courier, monospace; /* 옛날 타자기(개발자) 느낌의 폰트 */
+    font-size: 0.85rem;
+    line-height: 1.4;
+    white-space: pre-wrap; /* 줄바꿈 유지 */
+}
+/* 모달 하단 버튼 영역 */
+.modal-footer {
+    margin-top: 20px;
+    text-align: right;
+}
+
+.log-error-text {
+    color: #ff6b6b;
+    font-weight: bold;
+}

@@ -4,6 +4,8 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
+from zoneinfo import ZoneInfo
+KST = ZoneInfo('Asia/Seoul')
 from dotenv import load_dotenv
 import requests
 
@@ -141,7 +143,7 @@ def build_html_template(data):
             <div class="header">
                 <span style="font-size: 0.9em; opacity: 0.8;">ALPHA TRADING INSIGHTS</span>
                 <h1 style="margin: 10px 0;">Daily Market Report</h1>
-                <p style="margin: 0; font-size: 1.1em; opacity: 0.9;">{datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
+                <p style="margin: 0; font-size: 1.1em; opacity: 0.9;">{datetime.now(KST).strftime('%Y-%m-%d %H:%M')}</p>
             </div>
             <div class="content">
                 <div class="market-summary">
@@ -209,7 +211,7 @@ def main():
     subscribers = get_subscribers()
     
     print(f"Starting email dispatch to {len(subscribers)} recipients...")
-    send_email(f"[Stock Report] {datetime.now().strftime('%Y-%m-%d')} 시장 분석 및 예측", html_content, subscribers)
+    send_email(f"[Stock Report] {datetime.now(KST).strftime('%Y-%m-%d')} 시장 분석 및 예측", html_content, subscribers)
 
 if __name__ == "__main__":
     load_dotenv()
