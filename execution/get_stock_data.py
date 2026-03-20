@@ -60,26 +60,25 @@ def get_relative_volume_us():
     results = []
     for ticker in tickers:
         try:
-            stock = yf.Ticker(ticker)
-            df = stock.history(period='1mo')
+            # Use FinanceDataReader instead of yfinance for more stable data retrieval
+            df = fdr.DataReader(ticker, (datetime.now(KST) - timedelta(days=30)).strftime('%Y-%m-%d'))
             if len(df) < 21: continue
             
             avg_vol = df['Volume'].iloc[:-1].tail(20).mean()
             recent_vol = df['Volume'].iloc[-1]
             rvol = recent_vol / avg_vol if avg_vol > 0 else 0
             
-            info = stock.info
             results.append({
                 'symbol': ticker,
-                'name': info.get('longName', ticker),
+                'name': ticker, # Using ticker as name for simplicity, can be updated with a mapping
                 'price': float(df['Close'].iloc[-1]),
                 'change': float((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100),
                 'rvol': float(rvol),
                 'market': 'US',
-                'issued_shares': info.get('sharesOutstanding'),
-                'marcap': info.get('marketCap'),
-                'per': info.get('forwardPE'),
-                'pbr': info.get('priceToBook')
+                'issued_shares': None,
+                'marcap': None,
+                'per': None,
+                'pbr': None
             })
         except Exception as e:
             print(f"Error fetching {ticker}: {e}")

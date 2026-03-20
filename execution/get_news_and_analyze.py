@@ -13,7 +13,7 @@ load_dotenv()
 
 # Gemini Setup
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 async def fetch_news_for_stock(session, stock):
     symbol = stock['symbol']
@@ -109,14 +109,8 @@ async def generate_analysis(stock_data):
         return result
     except Exception as e:
         print(f"AI Analysis failed: {e}")
-        return {
-            "status": "error",
-            "error_message": str(e),
-            "market_summary": "AI 분석 세션에 오류가 발생했습니다.",
-            "raw_data": stock_data, # 기사 정보를 보존
-            "prediction": "AI 분석 실패로 인해 예측을 제공할 수 없습니다."
-        }
-
+        # raise here so main can catch it and return code 1
+        raise e
 
 async def main():
     if not os.path.exists('.tmp/market_data.json'):
@@ -157,5 +151,13 @@ async def main():
     
     print("Report analysis saved to .tmp/report.json")
 
+async def main_wrapped():
+    try:
+        await main()
+    except Exception as e:
+        print(f"Fatal Error: {e}")
+        sys.exit(1)
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    import sys
+    asyncio.run(main_wrapped())

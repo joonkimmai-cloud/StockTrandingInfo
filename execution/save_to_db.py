@@ -54,7 +54,7 @@ def save_to_supabase():
         }
         
         comp_resp = requests.post(
-            f"{supabase_url}/rest/v1/companies",
+            f"{supabase_url}/rest/v1/companies?on_conflict=symbol",
             headers=headers,
             json=company_payload
         )
