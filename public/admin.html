@@ -216,6 +216,48 @@
         .status-dot.fail { background: #da3633; }
         .status-dot.running { background: #0051C3; }
 
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #fff;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+        .log-window {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+        .modal-footer {
+            margin-top: 20px;
+            text-align: right;
+        }
         .loader {
             border: 2px solid #f3f3f3;
             border-top: 2px solid var(--primary-blue);
@@ -269,6 +311,21 @@
                 <button class="btn-blue" style="background:#f0f0f0; color:#333; border: 1px solid #ddd;" onclick="sessionStorage.clear(); location.reload();">Logout</button>
             </div>
         </header>
+
+        <!-- Batch Modal -->
+        <div id="batch-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 style="margin:0; font-size:1.25rem;">Batch Execution Status</h2>
+                    <button id="close-modal-btn" style="background:none; border:none; font-size:1.5rem; cursor:pointer;" onclick="closeModal()">&times;</button>
+                </div>
+                <div id="modal-status-text" style="margin-bottom:10px; font-weight:600; color:var(--primary-blue);">Initializing...</div>
+                <div id="modal-log-window" class="log-window"></div>
+                <div class="modal-footer">
+                    <button id="modal-ok-btn" class="btn-blue" style="display:none;" onclick="closeModal()">Close & Refresh</button>
+                </div>
+            </div>
+        </div>
 
         <main class="content-scroll">
             <div class="content-container" id="main-content">
@@ -456,62 +513,93 @@
         }
 
         async function handleRunBatch() {
-            const btn = document.getElementById('run-batch-btn');
-            const loader = document.getElementById('run-loader');
-            const text = document.getElementById('run-btn-text');
+            if (!confirm('배치를 지금 즉시 실행하시겠습니까?')) return;
 
-            if (!confirm('배치를 지금 즉시 실행하시겠습니까? 데이터 초기화 및 수집이 다시 진행됩니다.')) return;
+            // Open Modal
+            const modal = document.getElementById('batch-modal');
+            const logWin = document.getElementById('modal-log-window');
+            const statusText = document.getElementById('modal-status-text');
+            const okBtn = document.getElementById('modal-ok-btn');
+            const closeBtn = document.getElementById('close-modal-btn');
 
-            btn.disabled = true;
-            loader.style.display = 'block';
-            text.innerText = 'Running...';
+            modal.style.display = 'flex';
+            logWin.innerHTML = '> Batch start request sent...\n';
+            statusText.innerText = 'Batch in Progress...';
+            statusText.style.color = 'var(--primary-blue)';
+            okBtn.style.display = 'none';
+            closeBtn.style.display = 'none';
 
             try {
                 const response = await fetch('http://localhost:5000/run-batch', { method: 'POST' });
                 const result = await response.json();
-                alert(result.message);
                 
-                // Poll for status
-                checkBatchStatus();
+                logWin.innerHTML += `> ${result.message}\n`;
+                
+                // Start Polling
+                pollBatchStatus();
             } catch (err) {
-                console.error(err);
-                alert('API 서버가 실행 중인지 확인해 주세요. (Port 5000)');
-                btn.disabled = false;
-                loader.style.display = 'none';
-                text.innerText = 'Run Batch Now';
+                logWin.innerHTML += `> ERROR: API 서버가 실행 중이지 않습니다. (Port 5000 확인)\n`;
+                statusText.innerText = 'Execution Failed';
+                statusText.style.color = 'var(--error-color)';
+                okBtn.style.display = 'block';
+                closeBtn.style.display = 'block';
             }
         }
 
-        async function checkBatchStatus() {
-            const btn = document.getElementById('run-batch-btn');
-            const loader = document.getElementById('run-loader');
-            const text = document.getElementById('run-btn-text');
+        async function pollBatchStatus() {
+            const logWin = document.getElementById('modal-log-window');
+            const statusText = document.getElementById('modal-status-text');
+            const okBtn = document.getElementById('modal-ok-btn');
+            const closeBtn = document.getElementById('close-modal-btn');
 
             try {
                 const response = await fetch('http://localhost:5000/batch-status');
                 const status = await response.json();
 
                 if (status.is_running) {
-                    btn.disabled = true;
-                    loader.style.display = 'block';
-                    text.innerText = 'Batch in Progress...';
-                    setTimeout(checkBatchStatus, 3000); // 3초마다 체크
+                    statusText.innerText = 'Batch in Progress...';
+                    setTimeout(pollBatchStatus, 2000); // 2초마다 체크
                 } else {
-                    if (text.innerText === 'Batch in Progress...') {
-                        alert('배치 실행이 완료되었습니다. 결과 요약을 새로고침하여 확인하세요.');
-                        loadPage('batch-summary');
+                    // Finished
+                    if (status.last_output.toLowerCase().includes('failed') || status.last_output.toLowerCase().includes('error')) {
+                        statusText.innerText = 'Batch Completed with ERRORS';
+                        statusText.style.color = 'var(--error-color)';
+                    } else {
+                        statusText.innerText = 'Batch Successfully Completed';
+                        statusText.style.color = '#238636';
                     }
-                    btn.disabled = false;
-                    loader.style.display = 'none';
-                    text.innerText = 'Run Batch Now';
+                    
+                    logWin.innerHTML += `\n--- FINAL OUTPUT ---\n${status.last_output}`;
+                    logWin.scrollTop = logWin.scrollHeight;
+                    okBtn.style.display = 'block';
+                    closeBtn.style.display = 'block';
                 }
             } catch (err) {
-                // If API is not running or other error, just reset button state
-                btn.disabled = false;
-                loader.style.display = 'none';
-                text.innerText = 'Run Batch Now';
-                console.error("Error checking batch status:", err);
+                console.error("Polling error:", err);
             }
+        }
+
+        function closeModal() {
+            document.getElementById('batch-modal').style.display = 'none';
+            loadPage('batch-summary');
+        }
+
+        function checkBatchStatus() {
+            // Initial simple status check for top button state only
+            fetch('http://localhost:5000/batch-status')
+                .then(res => res.json())
+                .then(status => {
+                    const btn = document.getElementById('run-batch-btn');
+                    if (btn) {
+                        if (status.is_running) {
+                            btn.disabled = true;
+                            btn.innerText = 'In Progress...';
+                        } else {
+                            btn.disabled = false;
+                            btn.innerText = 'Run Batch Now';
+                        }
+                    }
+                }).catch(() => {});
         }
 
         initDashboard();
