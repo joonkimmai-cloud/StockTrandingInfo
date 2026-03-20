@@ -292,15 +292,15 @@
         <div class="sidebar-logo">STOCK ALPHA</div>
         <div class="sidebar-menu">
             <div class="menu-group-title">Monitoring</div>
-            <div class="menu-item active" onclick="navTo('batch-summary', 'Monitoring')">Batch Summary</div>
-            <div class="menu-item" onclick="navTo('execution-logs', 'Monitoring')">Execution Logs</div>
+            <div class="menu-item active" id="nav-batch-summary">Batch Summary</div>
+            <div class="menu-item" id="nav-execution-logs">Execution Logs</div>
             
             <div class="menu-group-title">Data</div>
-            <div class="menu-item" onclick="navTo('companies', 'Data Management')">Companies List</div>
-            <div class="menu-item" onclick="navTo('news-articles', 'Data Management')">News Articles</div>
+            <div class="menu-item" id="nav-companies">Companies List</div>
+            <div class="menu-item" id="nav-news-articles">News Articles</div>
             
             <div class="menu-group-title">Users</div>
-            <div class="menu-item" onclick="navTo('subscriber-list', 'Subscribers')">All Subscribers</div>
+            <div class="menu-item" id="nav-subscriber-list">All Subscribers</div>
         </div>
     </aside>
 
@@ -308,7 +308,7 @@
         <header class="top-bar">
             <div class="breadcrumbs">Admin > <span id="nav-path">Monitoring</span></div>
             <div>
-                <button class="btn-blue" style="background:#f0f0f0; color:#333; border: 1px solid #ddd;" onclick="sessionStorage.clear(); location.reload();">Logout</button>
+                <button class="btn-blue" style="background:#f0f0f0; color:#333; border: 1px solid #ddd;" onclick="sessionStorage.clear(); window.location.href='login.html';">Logout</button>
             </div>
         </header>
 
@@ -317,12 +317,12 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 style="margin:0; font-size:1.25rem;">Batch Execution Status</h2>
-                    <button id="close-modal-btn" style="background:none; border:none; font-size:1.5rem; cursor:pointer;" onclick="closeModal()">&times;</button>
+                    <button id="close-modal-x" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
                 </div>
                 <div id="modal-status-text" style="margin-bottom:10px; font-weight:600; color:var(--primary-blue);">Initializing...</div>
                 <div id="modal-log-window" class="log-window"></div>
                 <div class="modal-footer">
-                    <button id="modal-ok-btn" class="btn-blue" style="display:none;" onclick="closeModal()">Close & Refresh</button>
+                    <button id="modal-ok-btn" class="btn-blue" style="display:none;">Close & Refresh</button>
                 </div>
             </div>
         </div>
@@ -330,30 +330,12 @@
         <main class="content-scroll">
             <div class="content-container" id="main-content">
                 <!-- Content will be injected here -->
-                <div class="page-header">
-                    <h1 class="page-title">Dashboard Overview</h1>
-                    <p class="page-desc">시스템 상태 및 주요 지표를 한눈에 확인하세요.</p>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-label">Total Subscribers</div>
-                        <div class="stat-value" id="count-subscribers">-</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Collected Companies</div>
-                        <div class="stat-value" id="count-companies">-</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-label">Last Batch Status</div>
-                        <div class="stat-value" id="today-status">-</div>
-                    </div>
-                </div>
             </div>
         </main>
     </div>
 
     <script>
+        // Use global scope for functions to keep it simple and avoid module scoping issues
         if (sessionStorage.getItem('isAdmin') !== 'true') { window.location.href = 'login.html'; }
 
         const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
@@ -362,11 +344,22 @@
 
         let currentPageId = 'batch-summary';
 
+        // Navigation event listeners
+        document.getElementById('nav-batch-summary').addEventListener('click', () => navTo('batch-summary', 'Monitoring'));
+        document.getElementById('nav-execution-logs').addEventListener('click', () => navTo('execution-logs', 'Monitoring'));
+        document.getElementById('nav-companies').addEventListener('click', () => navTo('companies', 'Data Management'));
+        document.getElementById('nav-subscriber-list').addEventListener('click', () => navTo('subscriber-list', 'Subscribers'));
+        
+        // Modal closure listeners
+        document.getElementById('close-modal-x').addEventListener('click', closeModal);
+        document.getElementById('modal-ok-btn').addEventListener('click', closeModal);
+
         function navTo(pageId, groupName) {
             currentPageId = pageId;
             document.getElementById('nav-path').innerText = groupName;
             document.querySelectorAll('.menu-item').forEach(item => {
-                item.classList.toggle('active', item.innerText.toLowerCase().replace(' ', '-') === pageId || item.onclick.toString().includes(pageId));
+                item.classList.remove('active');
+                if (item.id === `nav-${pageId}`) item.classList.add('active');
             });
             loadPage(pageId);
         }
@@ -384,13 +377,12 @@
                                 <h1 class="page-title">Batch Summary</h1>
                                 <p class="page-desc">최근 10건의 배치 실행 기록입니다.</p>
                             </div>
-                            <button id="run-batch-btn" class="btn-run-batch" onclick="handleRunBatch()">
-                                <div id="run-loader" class="loader" style="display:none; border-top-color:#fff;"></div>
+                            <button id="run-batch-btn" class="btn-run-batch">
                                 <span id="run-btn-text">Run Batch Now</span>
                             </button>
                         </div>
                     </div>
-                   <div class="card">
+                    <div class="card">
                         <table>
                             <thead>
                                 <tr>
@@ -404,15 +396,19 @@
                                 ${data?.map(row => `
                                     <tr>
                                         <td style="color:var(--text-muted)">${new Date(row.last_run_at).toLocaleString()}</td>
-                                        <td><span class="status-dot ${row.last_status.toLowerCase()}"></span><b>${row.last_status}</b></td>
-                                        <td>${row.summary_message}</td>
-                                        <td>${row.success_count} / ${row.fail_count}</td>
+                                        <td><span class="status-dot ${row.last_status ? row.last_status.toLowerCase() : 'fail'}"></span><b>${row.last_status || 'UNKNOWN'}</b></td>
+                                        <td>${row.summary_message || '-'}</td>
+                                        <td>${row.success_count || 0} / ${row.fail_count || 0}</td>
                                     </tr>
                                 `).join('') || '<tr><td colspan="4">No data available</td></tr>'}
                             </tbody>
                         </table>
                     </div>
                 `;
+                // Add event listener to the newly created button
+                const btn = document.getElementById('run-batch-btn');
+                if (btn) btn.addEventListener('click', handleRunBatch);
+                checkBatchStatus();
             } else if (pageId === 'execution-logs') {
                 const { data } = await supabaseClient.from('execution_logs').select('*').order('created_at', { ascending: false }).limit(30);
                 contentEl.innerHTML = `
@@ -492,35 +488,17 @@
                         </table>
                     </div>
                 `;
-            } else {
-                contentEl.innerHTML = `<div class="page-header"><h1 class="page-title">${pageId}</h1><p>Under Construction</p></div>`;
             }
-        }
-
-        async function initDashboard() {
-            const { count: subCount } = await supabaseClient.from('subscribers').select('*', { count: 'exact', head: true });
-            const { count: compCount } = await supabaseClient.from('companies').select('*', { count: 'exact', head: true });
-            const { data: lastBatch } = await supabaseClient.from('batch_summary').select('last_status').order('last_run_at', { ascending: false }).limit(1).single();
-
-            document.getElementById('count-subscribers').innerText = subCount || 0;
-            document.getElementById('count-companies').innerText = compCount || 0;
-            if (lastBatch) {
-                const status = lastBatch.last_status;
-                document.getElementById('today-status').innerText = status;
-            }
-            loadPage('batch-summary');
-            checkBatchStatus(); // Check batch status on dashboard load
         }
 
         async function handleRunBatch() {
             if (!confirm('배치를 지금 즉시 실행하시겠습니까?')) return;
 
-            // Open Modal
             const modal = document.getElementById('batch-modal');
             const logWin = document.getElementById('modal-log-window');
             const statusText = document.getElementById('modal-status-text');
             const okBtn = document.getElementById('modal-ok-btn');
-            const closeBtn = document.getElementById('close-modal-btn');
+            const closeBtn = document.getElementById('close-modal-x');
 
             modal.style.display = 'flex';
             logWin.innerHTML = '> Batch start request sent...\n';
@@ -534,8 +512,6 @@
                 const result = await response.json();
                 
                 logWin.innerHTML += `> ${result.message}\n`;
-                
-                // Start Polling
                 pollBatchStatus();
             } catch (err) {
                 logWin.innerHTML += `> ERROR: API 서버가 실행 중이지 않습니다. (Port 5000 확인)\n`;
@@ -550,7 +526,7 @@
             const logWin = document.getElementById('modal-log-window');
             const statusText = document.getElementById('modal-status-text');
             const okBtn = document.getElementById('modal-ok-btn');
-            const closeBtn = document.getElementById('close-modal-btn');
+            const closeBtn = document.getElementById('close-modal-x');
 
             try {
                 const response = await fetch('http://localhost:5000/batch-status');
@@ -558,10 +534,9 @@
 
                 if (status.is_running) {
                     statusText.innerText = 'Batch in Progress...';
-                    setTimeout(pollBatchStatus, 2000); // 2초마다 체크
+                    setTimeout(pollBatchStatus, 2000);
                 } else {
-                    // Finished
-                    if (status.last_output.toLowerCase().includes('failed') || status.last_output.toLowerCase().includes('error')) {
+                    if (status.last_output && (status.last_output.toLowerCase().includes('failed') || status.last_output.toLowerCase().includes('error'))) {
                         statusText.innerText = 'Batch Completed with ERRORS';
                         statusText.style.color = 'var(--error-color)';
                     } else {
@@ -569,7 +544,7 @@
                         statusText.style.color = '#238636';
                     }
                     
-                    logWin.innerHTML += `\n--- FINAL OUTPUT ---\n${status.last_output}`;
+                    logWin.innerHTML += `\n--- FINAL OUTPUT ---\n${status.last_output || 'No output recorded.'}`;
                     logWin.scrollTop = logWin.scrollHeight;
                     okBtn.style.display = 'block';
                     closeBtn.style.display = 'block';
@@ -581,11 +556,10 @@
 
         function closeModal() {
             document.getElementById('batch-modal').style.display = 'none';
-            loadPage('batch-summary');
+            loadPage(currentPageId);
         }
 
         function checkBatchStatus() {
-            // Initial simple status check for top button state only
             fetch('http://localhost:5000/batch-status')
                 .then(res => res.json())
                 .then(status => {
@@ -600,6 +574,16 @@
                         }
                     }
                 }).catch(() => {});
+        }
+
+        async function initDashboard() {
+            try {
+                const { count: subCount } = await supabaseClient.from('subscribers').select('*', { count: 'exact', head: true });
+                const { count: compCount } = await supabaseClient.from('companies').select('*', { count: 'exact', head: true });
+                document.getElementById('count-subscribers').innerText = subCount || 0;
+                document.getElementById('count-companies').innerText = compCount || 0;
+            } catch(e) {}
+            loadPage('batch-summary');
         }
 
         initDashboard();
