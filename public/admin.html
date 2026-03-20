@@ -227,6 +227,22 @@
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .btn-run-batch {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+        .btn-run-batch:hover { background: #2ea043; }
+        .btn-run-batch:disabled { background: #8b949e; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -306,10 +322,18 @@
                 const { data } = await supabaseClient.from('batch_summary').select('*').order('last_run_at', { ascending: false }).limit(10);
                 contentEl.innerHTML = `
                     <div class="page-header">
-                        <h1 class="page-title">Batch Summary</h1>
-                        <p class="page-desc">최근 10건의 배치 실행 기록입니다.</p>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+                            <div>
+                                <h1 class="page-title">Batch Summary</h1>
+                                <p class="page-desc">최근 10건의 배치 실행 기록입니다.</p>
+                            </div>
+                            <button id="run-batch-btn" class="btn-run-batch" onclick="handleRunBatch()">
+                                <div id="run-loader" class="loader" style="display:none; border-top-color:#fff;"></div>
+                                <span id="run-btn-text">Run Batch Now</span>
+                            </button>
+                        </div>
                     </div>
-                    <div class="card">
+                   <div class="card">
                         <table>
                             <thead>
                                 <tr>
@@ -428,6 +452,66 @@
                 document.getElementById('today-status').innerText = status;
             }
             loadPage('batch-summary');
+            checkBatchStatus(); // Check batch status on dashboard load
+        }
+
+        async function handleRunBatch() {
+            const btn = document.getElementById('run-batch-btn');
+            const loader = document.getElementById('run-loader');
+            const text = document.getElementById('run-btn-text');
+
+            if (!confirm('배치를 지금 즉시 실행하시겠습니까? 데이터 초기화 및 수집이 다시 진행됩니다.')) return;
+
+            btn.disabled = true;
+            loader.style.display = 'block';
+            text.innerText = 'Running...';
+
+            try {
+                const response = await fetch('http://localhost:5000/run-batch', { method: 'POST' });
+                const result = await response.json();
+                alert(result.message);
+                
+                // Poll for status
+                checkBatchStatus();
+            } catch (err) {
+                console.error(err);
+                alert('API 서버가 실행 중인지 확인해 주세요. (Port 5000)');
+                btn.disabled = false;
+                loader.style.display = 'none';
+                text.innerText = 'Run Batch Now';
+            }
+        }
+
+        async function checkBatchStatus() {
+            const btn = document.getElementById('run-batch-btn');
+            const loader = document.getElementById('run-loader');
+            const text = document.getElementById('run-btn-text');
+
+            try {
+                const response = await fetch('http://localhost:5000/batch-status');
+                const status = await response.json();
+
+                if (status.is_running) {
+                    btn.disabled = true;
+                    loader.style.display = 'block';
+                    text.innerText = 'Batch in Progress...';
+                    setTimeout(checkBatchStatus, 3000); // 3초마다 체크
+                } else {
+                    if (text.innerText === 'Batch in Progress...') {
+                        alert('배치 실행이 완료되었습니다. 결과 요약을 새로고침하여 확인하세요.');
+                        loadPage('batch-summary');
+                    }
+                    btn.disabled = false;
+                    loader.style.display = 'none';
+                    text.innerText = 'Run Batch Now';
+                }
+            } catch (err) {
+                // If API is not running or other error, just reset button state
+                btn.disabled = false;
+                loader.style.display = 'none';
+                text.innerText = 'Run Batch Now';
+                console.error("Error checking batch status:", err);
+            }
         }
 
         initDashboard();
