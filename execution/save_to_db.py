@@ -42,15 +42,13 @@ def save_to_supabase():
     
     # 3. 데이터베이스(Supabase)에 정보를 하나씩 저장/업데이트 하는 전체 반복문
     for stock in all_stocks:
-        # [과정 A] 회사(회사명, 시가총액, PER 등) 정보를 먼저 DB에 넣거나 업데이트(Upsert)
+        # [과정 A] 회사(회사명, 시장, 요약 정보 등 고정값 위주) 정보를 먼저 DB에 넣거나 업데이트(Upsert)
+        # 이미 존재하는 기업이면 updated_at 값 및 기타 정보가 갱신됩니다.
         company_payload = {
             "name": stock['name'],
             "symbol": stock['symbol'],
             "market": stock['market'],
-            "issued_shares": stock.get('issued_shares'),
-            "marcap": stock.get('marcap'),
-            "per": stock.get('per'),
-            "pbr": stock.get('pbr'),
+            "business_summary": stock.get('business_summary'),
             "updated_at": datetime.now(KST).isoformat()
         }
         
@@ -69,11 +67,32 @@ def save_to_supabase():
             f"{supabase_url}/rest/v1/companies?symbol=eq.{stock['symbol']}&select=id",
             headers=headers
         )
-        # 4. 회사 ID가 정상적으로 조회되었다면, 해당 회사의 '뉴스' 정보를 DB에 저장합니다.
+        # 4. 회사 ID가 정상적으로 조회되었다면, 해당 회사의 정보를 기록합니다.
         if get_resp.status_code == 200 and get_resp.json():
             company_uuid = get_resp.json()[0]['id']
             
-            # 전체 뉴스 리스트(.tmp/news_data.json)에서 현재 회사(stock)의 뉴스를 찾음
+            # [과정 B] 매일 변동되는 상세 지표(가격, PER, 기대수익률, 기업가치 등)를 이력(history) 테이블에 따로 추가(Insert)
+            history_payload = {
+                "company_id": company_uuid,
+                "price": stock.get('price'),
+                "change_rate": stock.get('change'),
+                "rvol": stock.get('rvol'),
+                "marcap": stock.get('marcap'),
+                "per": stock.get('per'),
+                "pbr": stock.get('pbr'),
+                "annual_price_change": stock.get('annual_price_change'),
+                "expected_return": stock.get('expected_return'),
+                "enterprise_value": stock.get('enterprise_value'),
+                "recorded_at": datetime.now(KST).isoformat()
+            }
+            
+            requests.post(
+                f"{supabase_url}/rest/v1/company_histories",
+                headers=headers,
+                json=history_payload
+            )
+            
+            # [과정 C] 뉴스 정보 저장
             stock_news_entry = next((s for s in news_all if s['symbol'] == stock['symbol']), None)
             if stock_news_entry and 'news' in stock_news_entry:
                 
