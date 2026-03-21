@@ -120,7 +120,7 @@ async function sendCodeEmail(email, code) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 1단계: 구독 버튼 클릭
+// 1단계: 구독 버튼 클릭 (UI 플로우 개선)
 // ─────────────────────────────────────────────────────────────
 async function subscribe() {
     const emailInput = document.getElementById('email');
@@ -138,7 +138,7 @@ async function subscribe() {
     messageEl.innerHTML = '';
 
     try {
-        // ① 중복 확인
+        // [1] 중복 이메일 우선 확인
         const existing = await sbGet('subscribers', `email=eq.${encodeURIComponent(email)}`);
         if (existing && existing.length > 0) {
             alert(`⚠️ 이미 등록된 이메일입니다!\n\n'${email}' 주소는 이미 구독 중입니다.\n다른 이메일 주소를 사용해 주세요.`);
@@ -146,45 +146,61 @@ async function subscribe() {
             return;
         }
 
-        // ② 팝업을 먼저 띄움 (이메일 발송 성공/실패와 무관하게 표시)
+        // [2] 팝업 화면을 최우선으로 오픈하여 사용자 경험 개선
+        // 이메일 전송까지 수 초가 걸리므로 팝업부터 띄워 로딩 상태를 보여줍니다.
         showOverlay(email);
         bindVerifyButtons(email);
-        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 인증 코드를 발송 중입니다...</span>';
-        setErr('코드 발송 중... 잠시만 기다려 주세요.');
+        
+        const confirmBtn = document.getElementById('verify-confirm-btn');
+        const codeInput = document.getElementById('verify-code-input');
+        
+        // 데이터 전송 중에는 확인 버튼과 입력창을 막아둠
+        confirmBtn.disabled = true;
+        codeInput.disabled = true;
+        setErr('인증 코드 생성 및 발송 중입니다... 잠시만 기다려 주세요.');
+        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 인증 코드를 발송하고 있습니다...</span>';
 
-        // ③ 6자리 코드 생성
+        // [3] 백그라운드로 인증 코드 생성 및 DB 저장
         const code = String(Math.floor(100000 + Math.random() * 900000));
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-        // ④ Supabase에 코드 저장
         await sbDelete('email_verifications', `email=eq.${encodeURIComponent(email)}`);
         const saveResp = await sbInsert('email_verifications', { email, code, expires_at: expiresAt, verified: false });
+        
         if (!saveResp.ok && saveResp.status !== 201) {
             const errBody = await saveResp.text().catch(() => '');
             console.error('DB save failed:', saveResp.status, errBody);
-            setErr(`⚠️ DB 저장 오류(${saveResp.status}): email_verifications 테이블이 Supabase에 생성되어 있는지 확인해 주세요.`);
-            return;
+            setErr(`⚠️ DB 저장 실패 (${saveResp.status})\n관리자에게 문의해 주세요.`);
+            return; // 팝업은 열려있지만 에러 상태 유지
         }
 
-        // ⑤ 이메일 발송
+        // [4] 백그라운드로 이메일 발송 처리
         try {
             await sendCodeEmail(email, code);
+            
+            // 전송 완료 시 UI 활성화
             setErr('');
-            messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 이메일을 확인하여 코드를 입력해 주세요.</span>';
+            confirmBtn.disabled = false;
+            codeInput.disabled = false;
+            codeInput.focus();
+            messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 이메일을 확인하고 코드를 입력해 주세요.</span>';
+            
         } catch (emailErr) {
             console.error('Email send failed:', emailErr);
-            setErr(`⚠️ 이메일 발송 실패: ${emailErr.message || emailErr}\n코드를 직접 콘솔에서 확인하거나 재발송을 눌러주세요.`);
-            // 이메일 발송 실패해도 팝업은 유지 (재발송 버튼으로 재시도 가능)
+            // 이메일 발송에 실패하면 팝업 안에 에러를 표시하고 재발송을 유도
+            setErr(`⚠️ 이메일 전송에 실패했습니다. (${emailErr})\n다시 시도하거나 스팸함을 확인하세요.`);
+            confirmBtn.disabled = false; 
+            codeInput.disabled = false;
         }
 
     } catch (err) {
         console.error('subscribe error:', err);
-        messageEl.innerHTML = `<span class="error">오류: ${err.message}</span>`;
+        messageEl.innerHTML = `<span class="error">구독 요청 중 오류가 발생했습니다: ${err.message}</span>`;
+        hideOverlay(); // 초기 단계에서 치명적 에러면 팝업 닫기
     } finally {
         btn.innerText = '무료 리포트 구독하기';
         btn.disabled = false;
     }
-
 }
 
 // ─────────────────────────────────────────────────────────────
