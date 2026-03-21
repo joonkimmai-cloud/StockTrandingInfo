@@ -1,249 +1,62 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <!-- 
+       index.html 
+       사용자가 가장 처음 들어오는 대문(메인 페이지)의 구조(뼈대)를 작성한 문서입니다.
+       디자인은 index.css 파일에, 기능(클릭 동작 등)은 index.js 파일에 완전히 분리하여 초심자도 알아보기 쉽게 나누었습니다.
+    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Alpha - 프리미엄 데일리 증권 리포트</title>
+    
+    <!-- 1. 글꼴(Pretendard) 파일 외부에서 가져오기 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    
+    <!-- 2. 우리가 분리해 놓은 'index.css' 디자인 파일 연결 -->
+    <link rel="stylesheet" href="index.css">
+    
+    <!-- 3. Supabase(데이터베이스 연결 도구)를 외부에서 가져오기 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --bg-color: #0d1117;
-            --primary-gradient: linear-gradient(135deg, #7b2ff7 0%, #21d4fd 100%);
-            --card-bg: rgba(255, 255, 255, 0.05);
-            --text-color: #ffffff;
-            --accent-color: #21d4fd;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Pretendard', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-            background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0d1117 100%);
-        }
-
-        .container {
-            text-align: center;
-            max-width: 500px;
-            padding: 40px;
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 1s ease-out;
-            position: relative;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        h1 {
-            font-size: 3rem;
-            font-weight: 900;
-            margin-bottom: 10px;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        p {
-            font-size: 1.1rem;
-            color: #8b949e;
-            margin-bottom: 30px;
-            line-height: 1.6;
-        }
-
-        .input-group {
-            position: relative;
-            margin-top: 20px;
-        }
-
-        input[type="email"] {
-            width: 100%;
-            padding: 18px 25px;
-            box-sizing: border-box;
-            background: rgba(0, 0, 0, 0.3);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 14px;
-            color: #fff;
-            font-size: 1rem;
-            outline: none;
-            transition: 0.3s;
-        }
-
-        input[type="email"]:focus {
-            border-color: #7b2ff7;
-            box-shadow: 0 0 15px rgba(123, 47, 247, 0.3);
-        }
-
-        button {
-            width: 100%;
-            margin-top: 15px;
-            padding: 18px;
-            border: none;
-            border-radius: 14px;
-            background: var(--primary-gradient);
-            color: #fff;
-            font-size: 1.1rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: 0 4px 15px rgba(123, 47, 247, 0.4);
-        }
-
-        button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(123, 47, 247, 0.6);
-        }
-
-        #message {
-            margin-top: 20px;
-            font-size: 0.9rem;
-            min-height: 20px;
-        }
-
-        .success { color: #2ecc71; }
-        .error { color: #e74c3c; }
-
-        .tag {
-            display: inline-block;
-            background: rgba(123, 47, 247, 0.2);
-            color: var(--accent-color);
-            padding: 5px 15px;
-            border-radius: 30px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            letter-spacing: 1px;
-        }
-
-        .admin-link {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .admin-link a {
-            color: #8b949e;
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: 0.3s;
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
-            display: inline-block;
-        }
-
-        .admin-link a:hover {
-            color: #fff;
-            border-color: rgba(255,255,255,0.3);
-            background: rgba(255,255,255,0.05);
-        }
-    </style>
 </head>
+
 <body>
+    <!-- 내용물을 묶어 화면 정중앙에 보여주는 둥근 유리 상자(.container) -->
     <div class="container">
+        
+        <!-- 맨 위의 보라색 작은 태그 모양 -->
         <div class="tag">ALPHA TRADING SYSTEM</div>
+        
+        <!-- 메인 헤드라인 (가장 큰 글씨) -->
         <h1>Daily Spikes</h1>
+        
+        <!-- 서비스 설명 문구 (작은 글씨) -->
         <p>전일 거래량 급증 종목을 AI로 분석한<br>전문 에널리스트 리포트를 매일 아침 받아보세요.</p>
         
+        <!-- 사용자 이메일 입력 + 버튼을 모아둔 구역 -->
         <div class="input-group">
+            
+            <!-- 이메일 입력 상자 (required 속성은 '반드시 입력해야 함'을 뜻함) -->
+            <!-- 이메일 값 입력 시, id값인 'email' 을 이용해 자바스크립트가 추적합니다. -->
             <input type="email" id="email" placeholder="이메일 주소를 입력하세요" required>
+            
+            <!-- 구독 버튼을 클릭하면(onclick) 'subscribe()'라는 자바스크립트 기능을 실행! -->
             <button onclick="subscribe()" id="btnText">무료 리포트 구독하기</button>
+            
         </div>
+        
+        <!-- 자바스크립트가 에러/성공 메시지를 텍스트로 띄워줄 빈 공간 -->
         <div id="message"></div>
 
+        <!-- 하단 관리자(Admin) 전용 페이지로 이동하는 링크 -->
         <div class="admin-link">
             <a href="login.html">Admin Dashboard →</a>
         </div>
+        
     </div>
 
-    <script>
-        const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
-        let supabaseClient;
-        
-        try {
-            console.log("Initializing Supabase Client...");
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log("Supabase Client Loaded.");
-        } catch (e) {
-            console.error("Supabase Initialization Error:", e);
-        }
-
-        async function subscribe() {
-            console.log("Subscribe button clicked.");
-            const emailInput = document.getElementById('email');
-            const messageElement = document.getElementById('message');
-            const btnText = document.getElementById('btnText');
-            const email = emailInput.value;
-
-            if (!email || !email.includes('@')) {
-                messageElement.innerHTML = '<span class="error">유효한 이메일 주소를 입력해 주세요.</span>';
-                console.warn("Invalid email address.");
-                return;
-            }
-
-            // 구독 확인 알림창
-            const isConfirmed = confirm(`${email} 주소로 데일리 리포트를 구독하시겠습니까?`);
-            console.log("User confirmed:", isConfirmed);
-            if (!isConfirmed) return;
-
-            try {
-                btnText.innerText = "처리 중...";
-                btnText.disabled = true;
-
-                console.log("Checking if subscriber already exists...");
-                const { data: existingUser, error: checkError } = await supabaseClient
-                    .from('subscribers')
-                    .select('email')
-                    .eq('email', email)
-                    .single();
-
-                if (existingUser) {
-                    alert(`${email} 주소는 이미 구독 중입니다.`);
-                    messageElement.innerHTML = '<span class="success">이미 구독 중인 이메일입니다!</span>';
-                    return;
-                }
-
-                console.log("Inserting subscriber into Supabase...");
-                const { data, error } = await supabaseClient
-                    .from('subscribers')
-                    .insert([{ email }]);
-
-                if (error) {
-                    console.error("Supabase Insert Error:", error);
-                    if (error.code === '23505') {
-                        alert(`${email} 주소는 이미 구독 중입니다.`);
-                        messageElement.innerHTML = '<span class="success">이미 구독 중인 이메일입니다!</span>';
-                    } else {
-                        messageElement.innerHTML = `<span class="error">서버 오류: ${error.message}</span>`;
-                    }
-                } else {
-                    console.log("Success! Subscriber added.");
-                    messageElement.innerHTML = '<span class="success">구독 완료! 내일 아침에 뵙겠습니다.</span>';
-                    emailInput.value = '';
-                }
-            } catch (err) {
-                console.error("Fatal Error during subscription:", err);
-                messageElement.innerHTML = '<span class="error">시스템 치명적 오류가 발생했습니다.</span>';
-            } finally {
-                btnText.innerText = "무료 리포트 구독하기";
-                btnText.disabled = false;
-            }
-        }
-    </script>
+    <!-- 4. 버튼 동작 처리 등 실질적인 로직이 담긴 'index.js' 파일 연결 (맨 마지막에) -->
+    <script src="index.js"></script>
 
 </body>
 </html>

@@ -1,0 +1,146 @@
+/* 
+   login.css
+   관리자(Admin) 로그인 페이지의 전체 화면 디자인과 색상, 폰트 등을 
+   단독으로 꾸며주는 스타일 시트 파일입니다. 
+*/
+
+/* 
+   :root 변수 설정 (테마 전체 적용용) 
+   자주 쓰이는 색상(배경, 글자, 버튼 색 등)을 최상단에서 지정해주면
+   나중에 수정이 필요할 때 여기만 고쳐도 전체가 바뀌는 장점이 있습니다.
+*/
+:root {
+    --bg-dark: #0d1117; /* 가장 어두운 짙은 회색 배경 */
+    --card-bg: #161b22; /* 살짝 밝은 카드 컴포넌트 바탕 */
+    --primary-gradient: linear-gradient(135deg, #7b2ff7 0%, #21d4fd 100%); /* 보라색->밝은하늘색 그라디언트 효과 */
+    --text-main: #f0f6fc; /* 깔끔한 거의 완전 흰색의 글자색 */
+    --border-color: #30363d; /* 테두리를 둘러줄 어두운 회색. 깔끔한 인상을 만듦 */
+}
+
+/* 
+   body: 페이지의 가장 큰 도화지
+   - 가득 찰(height: 100vh) 정도로 설정해서 중간에 띄우는 flex 구조 디자인을 채택했습니다.
+*/
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Pretendard', sans-serif; /* 한글, 영문 모두 깔끔히 나오는 Pretendard 폰트 */
+    background-color: var(--bg-dark); /* 도화지 배경 지정 */
+    color: var(--text-main); /* 모든 글자색 기본을 흰색 계통으로 맞춤 */
+    display: flex; /* 중앙 배치를 위해 flex 켜기 */
+    justify-content: center; /* 가로(좌우)를 기준으로 한가운데로 보냄 */
+    align-items: center; /* 세로(상하)를 기준으로 한가운데로 보냄 */
+    height: 100vh; /* 화면 크기를 전체로 덮음 */
+    background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0d1117 100%); /* 중앙에서 바깥으로 퍼지는 빛 질감 배경 */
+}
+
+/* 로그인 입력창이 올라가는 중앙의 둥근 상자 스타일 (.login-card) */
+.login-card {
+    width: 100%;
+    max-width: 400px; /* 창이 너무 넓어지지 않도록 최댓값 지정 (스마트폰 크기에 맞게) */
+    background: var(--card-bg); /* 약간 밝은 배경 지정 */
+    padding: 50px 40px; /* 상자 안의 위/아래 공간 넓히기 */
+    border-radius: 24px; /* 각진 곳을 둥글게 굴림 */
+    border: 1px solid var(--border-color); /* 테두리를 아주 살짝 그림 */
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5); /* 상자가 공중에 떠 보이게 하는 입체 그림자 효과 */
+    text-align: center; /* 상자 안의 요소를 가운데 정렬 */
+    backdrop-filter: blur(10px); /* 뒷 배경이 살짝 흐릿하게 비쳐보이는 고급스러운 유리 느낌 */
+}
+
+/* STOCK ALPHA ADMIN 등 제목, 로고 타이틀 부분 (.logo) */
+.logo {
+    font-size: 1.5rem; /* 글자 크기는 1.5배 크게 */
+    font-weight: 800;  /* 폰트는 아주 두껍고 진하게(bold) */
+    background: var(--primary-gradient); /* 색상을 앞서 만든 그라데이션 변수로 지정 */
+    -webkit-background-clip: text; /* 텍스트 외곽선 안쪽으로만 색상을 채우는 기술 */
+    -webkit-text-fill-color: transparent; /* 글자 자체 색을 투명하게 만들어 그라데이션 배경을 노출시킵니다. */
+    margin-bottom: 30px; /* 로고와 입력창 사이에 여유 간격 부여 */
+}
+
+/* ID, PW 입력 묶음을 관리하는 디자인 (.input-group) */
+.input-group {
+    margin-bottom: 20px;
+    text-align: left; /* 라벨(이름)이 가운데가 아니라 왼쪽에 붙어있게 함 */
+}
+
+/* ID, PW 라는 글자 표시하는 라벨 부분 (label) */
+label {
+    display: block; /* 줄바꿈 효과를 줌 */
+    font-size: 0.85rem; /* 조금 작게 */
+    color: #8b949e; /* 글자 색을 연한 회색으로 변경 */
+    margin-bottom: 8px; /* 입력 박스와 여유 공간 */
+    margin-left: 5px; /* 왼쪽 여백 살짝 */
+}
+
+/* 직접 키보드로 적는 입력 상자(email / password) 스타일 (input) */
+input {
+    width: 100%; /* 부모 상자에 꽉 차도록 넓이 가득 채움 */
+    padding: 15px 20px; /* 박스 안의 상단과 측면 공간 */
+    box-sizing: border-box; /* 넓이 계산 시 padding 크기까지 다 합쳐서 계산하라고 지시 */
+    background: rgba(0,0,0,0.3); /* 살짝 검은색의 투명한 배경 처리 */
+    border: 1px solid var(--border-color); /* 테두리에 선 긋기 */
+    border-radius: 12px; /* 입력창 테두리 둥글게 */
+    color: #fff; /* 적히는 텍스트 색은 하얀색 */
+    font-size: 1rem;
+    outline: none; /* 클릭했을 때 튀어나오는 브라우저 기본 파란 테투리 없애기 */
+    transition: 0.2s; /* 무언가 변할때(focus등) 0.2초에 걸쳐 부드럽게 바뀌게 함 */
+}
+
+/* 입력창을 클릭해서 커서가 깜빡일 때 일어나는 테두리 변화! (input:focus) */
+input:focus {
+    border-color: #7b2ff7; /* 클릭 됨을 인지하기 쉽게 보라색 선으로 변형 */
+    box-shadow: 0 0 10px rgba(123, 47, 247, 0.2);
+}
+
+/* 관리자 로그인 파란 버튼 (button) */
+button {
+    width: 100%;
+    padding: 18px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 12px;
+    background: var(--primary-gradient); /* 버튼 전체를 아까 만든 파란 보라빛으로 */
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer; /* 마우스 올렸을때 화살표가 손가락으로 변함 */
+    transition: 0.3s;
+}
+
+/* 버튼에 마우스를 살짝 올린(hover) 상태 */
+button:hover:not(:disabled) {
+    transform: translateY(-2px); /* 버튼이 위로 아주 미세하게 붕 떠오르는 효과 */
+    box-shadow: 0 10px 20px rgba(123, 47, 247, 0.3);
+}
+
+/* 로딩 중 버튼을 못 누르게 할 때(흐려짐) */
+button:disabled {
+    opacity: 0.5; /* 반투명 (투명도 50%) */
+    cursor: not-allowed; /* 마우스가 금지 아이콘으로 뜸 */
+}
+
+/* 실패, 에러 뜨는 빨간줄 메시지 상자 */
+.error-msg {
+    color: #f85149;
+    font-size: 0.85rem;
+    margin-top: 15px;
+    display: none; /* 평상시엔 아무 일이 없을 테니 투명-숨겨둠(none) 상태입니다! */
+}
+
+/* 버튼 눌렀을 때 뺑글뺑글 도는 로딩 동그라미 (로더) */
+.loader {
+    display: none; /* 처음엔 보이지 않게 처리해둡니다 */
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top: 2px solid #fff; /* 빛나는 윗부분 선 */
+    border-radius: 50%; /* 완전 원형을 만들기 위함 */
+    animation: spin 1s linear infinite; /* 밑에서 만든 spin 이라는 규칙을 1초마다, 평생(infinite) 돌게 합니다. */
+    margin: 0 auto;
+}
+
+/* 로딩 동그라미를 빙글빙글 각도 회전(0도~360도)시키는 애니메이션 효과 (keyframes spin) */
+@keyframes spin { 
+    0% { transform: rotate(0deg); } 
+    100% { transform: rotate(360deg); } 
+}

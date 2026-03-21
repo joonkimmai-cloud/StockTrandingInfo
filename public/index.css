@@ -1,0 +1,166 @@
+/* 
+   index.css 
+   메인 페이지(리포트 구독 화면)의 색상, 폰트, 애니메이션 등 디자인 요소를 담당하는 스타일시트(CSS) 파일입니다.
+   초보자도 쉽게 수정할 수 있도록 색상 변수(:root)를 최상단에 배치했습니다.
+*/
+
+:root {
+    --bg-color: #0d1117; /* 페이지 배경 바탕색 (어두운 색) */
+    --primary-gradient: linear-gradient(135deg, #7b2ff7 0%, #21d4fd 100%); /* 보라색-파란색 그라데이션 */
+    --card-bg: rgba(255, 255, 255, 0.05); /* 카드 배경 (투명한 흰색) */
+    --text-color: #ffffff; /* 기본 글자색 (흰색) */
+    --accent-color: #21d4fd; /* 강조할 때 쓰는 파란색 */
+}
+
+/* 화면 전체의 기본 설정 */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Pretendard', sans-serif; /* 깔끔한 프리텐다드 폰트 적용 */
+    background-color: var(--bg-color); /* 배경색 지정 */
+    color: var(--text-color); /* 글자색 지정 */
+    display: flex; /* 화면 정가운데에 배치하기 위한 flex 옵션 */
+    justify-content: center; /* 가로 중앙 정렬 */
+    align-items: center; /* 세로 중앙 정렬 */
+    height: 100vh; /* 화면 전체 높이를 차지하게 설정 */
+    overflow: hidden; /* 화면 스크롤 숨김 */
+    background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0d1117 100%); /* 중앙에 빛이 퍼지는 듯한 배경 효과 */
+}
+
+/* 중앙에 들어가는 둥근 모서리 상자(컨테이너) 디자인 */
+.container {
+    text-align: center;
+    max-width: 500px;
+    padding: 40px;
+    background: var(--card-bg); /* 투명 배경 */
+    backdrop-filter: blur(10px); /* 뒤쪽 배경을 흐리게(유리 느낌) 처리하는 효과 */
+    border-radius: 24px; /* 둥근 모서리 */
+    border: 1px solid rgba(255, 255, 255, 0.1); /* 얇은 테두리 */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); /* 그림자 효과로 입체감 부여 */
+    animation: fadeIn 1s ease-out; /* 페이지를 열었을 때 나타나는 애니메이션 연결 */
+    position: relative;
+}
+
+/* 위에서 연결한 'fadeIn' 애니메이션 정의 (아래에서 위로 투명도가 진해지며 올라옴) */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 가장 큰 제목(H1) 디자인 */
+h1 {
+    font-size: 3rem;
+    font-weight: 900;
+    margin-bottom: 10px;
+    background: var(--primary-gradient); /* 그라데이션 색상을 글자에 입히기 */
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent; /* 글자의 배경만 남기기 (그라데이션 효과 완성) */
+}
+
+/* 일반 단락(P) 디자인 */
+p {
+    font-size: 1.1rem;
+    color: #8b949e;
+    margin-bottom: 30px;
+    line-height: 1.6; /* 줄 간격을 넓혀 읽기 편하게 만듦 */
+}
+
+/* 이메일 입력창 그룹(상자 + 버튼을 묶는 곳) */
+.input-group {
+    position: relative;
+    margin-top: 20px;
+}
+
+/* 이메일 입력 상자 디자인 */
+input[type="email"] {
+    width: 100%;
+    padding: 18px 25px;
+    box-sizing: border-box; /* padding을 포함해 사이즈 계산 */
+    background: rgba(0, 0, 0, 0.3); /* 살짝 어두운 투명 배경 */
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    color: #fff;
+    font-size: 1rem;
+    outline: none; /* 클릭 시 기본 파란 태두리 끄기 */
+    transition: 0.3s; /* 상태가 변할 때 0.3초 동안 부드럽게 변경 */
+}
+
+/* 이메일 입력 상자를 클릭(Focus) 했을 때 효과 */
+input[type="email"]:focus {
+    border-color: #7b2ff7; /* 보라색 테두리 */
+    box-shadow: 0 0 15px rgba(123, 47, 247, 0.3); /* 보라색 빛 반사 효과 */
+}
+
+/* 구독하기 버튼 디자인 */
+button {
+    width: 100%;
+    margin-top: 15px;
+    padding: 18px;
+    border: none;
+    border-radius: 14px;
+    background: var(--primary-gradient);
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer; /* 마우스 오버 시 손가락 모양 커서 */
+    transition: 0.3s;
+    box-shadow: 0 4px 15px rgba(123, 47, 247, 0.4);
+}
+
+/* 구독하기 버튼에 마우스를 올렸을 때(hover) 효과 */
+button:hover {
+    transform: translateY(-3px); /* 버튼이 살짝 위로 떠오름 */
+    box-shadow: 0 6px 20px rgba(123, 47, 247, 0.6);
+}
+
+/* 메시지 텍스트(성공/에러) 영역 */
+#message {
+    margin-top: 20px;
+    font-size: 0.9rem;
+    min-height: 20px; /* 글자가 없을때도 일정 높이 유지 (깜빡임 방지) */
+}
+
+/* 성공 시 표시될 글자 색상 (초록색) */
+.success { color: #2ecc71; }
+/* 에러 시 표시될 글자 색상 (빨간색) */
+.error { color: #e74c3c; }
+
+/* 작은 배지(태그) 디자인 */
+.tag {
+    display: inline-block;
+    background: rgba(123, 47, 247, 0.2);
+    color: var(--accent-color);
+    padding: 5px 15px;
+    border-radius: 30px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+    letter-spacing: 1px; /* 글자간격 조금 넓힘 */
+}
+
+/* 관리자 로그인 링크 위치 디자인 */
+.admin-link {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.05); /* 상단에 연한 선 하나 긋기 */
+}
+
+/* 관리자 로그인 링크(글자) 상세 디자인 */
+.admin-link a {
+    color: #8b949e;
+    text-decoration: none; /* 밑줄 없애기 */
+    font-size: 0.85rem;
+    transition: 0.3s;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    display: inline-block;
+}
+
+/* 관리자 링크 마우스 오버(올렸을 때) 효과 */
+.admin-link a:hover {
+    color: #fff;
+    border-color: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.05);
+}

@@ -1,207 +1,63 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <!-- 
+       login.html 
+       관리자(Admin) 전용 로그인 화면의 뼈대를 그려주는 문서입니다.
+       디자인(크기, 색상, 애니메이션 등)은 `login.css`에 분리했고,
+       아이디/비밀번호 확인을 처리하는 핵심 코드는 `login.js`에 따로 보관했습니다.
+       이렇게 나누면 소스 코드가 길어지지 않아 유지보수(수정)하기 편리합니다.
+    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Alpha - Admin Login</title>
+    
+    <!-- 1. 화면 폰트(Pretendard) 주소를 웹에서 그대로 빌려옵니다 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+    
+    <!-- 2. 우리가 새로 분리해서 따로 작성해둔 'login.css' 파일을 연결하여 옷을 입힙니다 -->
+    <link rel="stylesheet" href="login.css">
+    
+    <!-- 3. 외부 도우미 라이브러리들 연결: DB(Supabase) 기능과 암호해독기(bcryptjs) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
-    <style>
-        :root {
-            --bg-dark: #0d1117;
-            --card-bg: #161b22;
-            --primary-gradient: linear-gradient(135deg, #7b2ff7 0%, #21d4fd 100%);
-            --text-main: #f0f6fc;
-            --border-color: #30363d;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Pretendard', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0d1117 100%);
-        }
-
-        .login-card {
-            width: 100%;
-            max-width: 400px;
-            background: var(--card-bg);
-            padding: 50px 40px;
-            border-radius: 24px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            text-align: center;
-            backdrop-filter: blur(10px);
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 800;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 30px;
-        }
-
-        .input-group {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-
-        label {
-            display: block;
-            font-size: 0.85rem;
-            color: #8b949e;
-            margin-bottom: 8px;
-            margin-left: 5px;
-        }
-
-        input {
-            width: 100%;
-            padding: 15px 20px;
-            box-sizing: border-box;
-            background: rgba(0,0,0,0.3);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            color: #fff;
-            font-size: 1rem;
-            outline: none;
-            transition: 0.2s;
-        }
-
-        input:focus {
-            border-color: #7b2ff7;
-            box-shadow: 0 0 10px rgba(123, 47, 247, 0.2);
-        }
-
-        button {
-            width: 100%;
-            padding: 18px;
-            margin-top: 10px;
-            border: none;
-            border-radius: 12px;
-            background: var(--primary-gradient);
-            color: #fff;
-            font-size: 1.1rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(123, 47, 247, 0.3);
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .error-msg {
-            color: #f85149;
-            font-size: 0.85rem;
-            margin-top: 15px;
-            display: none;
-        }
-
-        .loader {
-            display: none;
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-top: 2px solid #fff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
 </head>
+
 <body>
+    <!-- 로그인 창 전체를 하나로 묶는 가운데 제일 큰 박스(.login-card) -->
     <div class="login-card">
+        
+        <!-- 맨 꼭대기 굵은 시스템 로고 부분 -->
         <div class="logo">STOCK ALPHA ADMIN</div>
+        
+        <!-- [아이디 영역] -->
         <div class="input-group">
             <label>Admin Email</label>
+            <!-- 사용자가 키보드로 타자를 칠수 있는 창. 자바스크립트는 저 id="admin-id" 부분을 집게처럼 집어서 내용을 훔쳐봅니다. -->
             <input type="email" id="admin-id" placeholder="example@gmail.com">
         </div>
+        
+        <!-- [비밀번호 영역] -->
         <div class="input-group">
             <label>Password</label>
             <input type="password" id="admin-pw" placeholder="비밀번호를 입력하세요">
         </div>
+        
+        <!-- 파란색 [로그인 수행] 동작 버튼. 클릭 시 JS 파일에 있는 'handleLogin()' 이라는 이름을 가진 함수를 작동시킵니다 -->
         <button id="login-btn" onclick="handleLogin()">
+            <!-- 평상시 보일 기본 글자 -->
             <span id="btn-text">관리자 로그인</span>
+            <!-- 숨겨둠! 처리 시간이 걸릴 때만 나와서 로딩 원을 그려줄 동그라미 공간 -->
             <div id="btn-loader" class="loader"></div>
         </button>
+        
+        <!-- 숨겨둠! 비번 틀리거나 서버 에러가 났을 때만 버튼 아래쪽에 빨갛게 나타날 문구 공간 -->
         <div id="error-msg" class="error-msg">인증 정보가 올바르지 않거나 시스템 오류가 발생했습니다.</div>
+        
     </div>
 
-    <script>
-        const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <!-- 4. 마지막으로, 화면의 버튼 동작을 지시하는 'login.js' 스크립트 연결 부분 -->
+    <script src="login.js"></script>
 
-        async function handleLogin() {
-            const email = document.getElementById('admin-id').value;
-            const password = document.getElementById('admin-pw').value;
-            const errorEl = document.getElementById('error-msg');
-            const btnText = document.getElementById('btn-text');
-            const btnLoader = document.getElementById('btn-loader');
-            const loginBtn = document.getElementById('login-btn');
-
-            if (!email || !password) {
-                errorEl.style.display = 'block';
-                return;
-            }
-
-            // UI Feedback
-            errorEl.style.display = 'none';
-            btnText.style.display = 'none';
-            btnLoader.style.display = 'block';
-            loginBtn.disabled = true;
-
-            try {
-                // 1. Supabase에서 해당 이메일의 유저 정보(해시 포함) 가져오기
-                const { data, error } = await supabaseClient
-                    .from('admin_users')
-                    .select('email, password_hash')
-                    .eq('email', email)
-                    .single();
-
-                if (error || !data) {
-                    throw new Error('User not found');
-                }
-
-                // 2. 패스워드 검증 (bcrypt.js 사용)
-                // cdn 버전은 dcodeIO 객체 없이 전역 bcrypt 객체를 생성하기도 합니다.
-                const bCryptLib = (typeof dcodeIO !== 'undefined') ? dcodeIO.bcrypt : bcrypt;
-                const isValid = bCryptLib.compareSync(password, data.password_hash);
-
-                if (isValid) {
-                    sessionStorage.setItem('isAdmin', 'true');
-                    sessionStorage.setItem('adminEmail', email);
-                    location.href = 'admin.html';
-                } else {
-                    throw new Error('Invalid password');
-                }
-
-            } catch (err) {
-                console.error(err);
-                errorEl.style.display = 'block';
-            } finally {
-                btnText.style.display = 'block';
-                btnLoader.style.display = 'none';
-                loginBtn.disabled = false;
-            }
-        }
-    </script>
 </body>
 </html>
