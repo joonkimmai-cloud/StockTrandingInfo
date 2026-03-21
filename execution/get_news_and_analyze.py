@@ -16,56 +16,74 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 async def fetch_news_for_stock(session, stock):
+    # 주식 정보 추출
     symbol = stock['symbol']
     name = stock['name']
-    market = stock['market']
     
-    # Google News search URL with Disclosure/Filing keywords
-    # Search for last 24h first
-    query = f"{name} {symbol} stock news disclosure"
-    url_24h = f"https://www.google.com/search?q={query}&tbm=nws&tbs=qdr:d"
-    url_28h = f"https://www.google.com/search?q={query}&tbm=nws&tbs=qdr:h28"
+    # SerpApi 키 가져오기 (.env 파일에 저장된 값)
+    serpapi_key = os.getenv("SERPAPI_API_KEY")
+    if not serpapi_key:
+        print(f"Error: SERPAPI_API_KEY is not set.")
+        return {**stock, 'news': [{"title": "API Key Error", "url": "#", "source": "System", "snippet": "SERPAPI_API_KEY가 설정되지 않았습니다."}]}
+        
+    # 뉴스 검색어 설정 (종목명, 티커 등에 '공시', '실적' 등 키워드 조합 가능)
+    query = f"{name} {symbol} 주식 뉴스"
     
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    # SerpApi 요청 URL 및 파라미터 설정
+    # engine=google: 구글 검색 엔진 사용
+    # tbm=nws: 구글 '뉴스' 탭 검색을 의미함
+    # num=4: 가져올 뉴스 기사 수 (최대 4개)
+    params = {
+        "engine": "google",
+        "q": query,
+        "tbm": "nws",
+        "api_key": serpapi_key,
+        "num": "4"
     }
     
-    async def get_articles(target_url, period_label):
-        async with session.get(target_url, headers=headers) as response:
-            html = await response.text()
-            soup = BeautifulSoup(html, 'html.parser')
-            items = soup.select('div.So0oBc, div.BNeawe.vvv07z.AP7Wnd')
-            results = []
-            for item in items[:4]:
-                title = item.get_text()
-                link_tag = item.find_parent('a') or item.find('a')
-                link = link_tag['href'] if link_tag and 'href' in link_tag.attrs else "#"
-                if not link.startswith('http'): link = f"https://www.google.com{link}"
-                if title:
-                    results.append({'title': title, 'url': link, 'source': 'Google News', 'timestamp': datetime.now(KST).isoformat()})
-            return results
-
     try:
-        print(f"  [2단계] {name}({symbol}) 뉴스 및 공시 수집 중 (24시간 내)...")
-        articles = await get_articles(url_24h, "24h")
-        period = "24시간"
-
-        if not articles:
-            print(f"  [2단계] {name} 24시간 내 기사 없음. 28시간 범위로 재시도...")
-            articles = await get_articles(url_28h, "28h")
-            period = "28시간"
-        
-        status = "success" if articles else "no_news_found"
-        print(f"  [2단계] {name}({symbol}) 뉴스 기사 수집 완료 ({period}).")
-        return {
-            **stock,
-            'news': articles if articles else [{"title": f"** {period} 동안의 관련 기사 및 공시 없음", "url": "#", "source": "N/A"}],
-           'news_status': status,
-            'period': period
-        }
+        print(f"  [2단계] {name}({symbol}) 뉴스 수집 중 (SerpApi 사용)...")
+        # SerpApi로 HTTP GET 요청 보내기
+        async with session.get("https://serpapi.com/search", params=params) as response:
+            data = await response.json()
+            
+            articles = []
+            # 결과 중 'news_results' 리스트가 있는지 확인
+            if 'news_results' in data:
+                # 최대 4개의 뉴스 데이터를 가져와서 리스트에 추가
+                for item in data['news_results'][:4]:
+                    articles.append({
+                        'title': item.get('title', '제목 없음'),
+                        'url': item.get('link', '#'),
+                        'source': item.get('source', 'Google News'),
+                        'timestamp': item.get('date', datetime.now(KST).isoformat()),
+                        'snippet': item.get('snippet', ''),          # 기사 요약
+                        'thumbnail_url': item.get('thumbnail', '')   # 썸네일 이미지 주소
+                    })
+                    
+            status = "success" if articles else "no_news_found"
+            print(f"  [2단계] {name}({symbol}) 뉴스 기사 수집 완료. (조회 수: {len(articles)})")
+            
+            # 수집된 기사가 없으면 기본 안내 메시지 추가
+            if not articles:
+                articles = [{
+                    "title": "** 관련 기사 및 공시 없음", 
+                    "url": "#", 
+                    "source": "N/A", 
+                    "snippet": "", 
+                    "thumbnail_url": ""
+                }]
+                
+            return {
+                **stock,
+                'news': articles,
+                'news_status': status,
+                'period': 'SerpApi'
+            }
     except Exception as e:
+        # 에러 발생 시 처리 (예: 인터넷 연결 문제, API 오류 등)
         print(f"Error scraping news for {symbol}: {e}")
-        return {**stock, 'news': [{"title": "Error fetching news", "url": "#", "source": "Error"}]}
+        return {**stock, 'news': [{"title": "뉴스 수집 중 오류 발생", "url": "#", "source": "Error", "snippet": str(e), "thumbnail_url": ""}]}
 
 async def generate_analysis(stock_data):
     print("[3단계] AI 분석 리포트 생성 시작...")
