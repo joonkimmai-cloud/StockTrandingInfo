@@ -13,7 +13,7 @@ load_dotenv()
 
 # Gemini Setup
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 async def fetch_news_for_stock(session, stock):
     # 주식 정보 추출
