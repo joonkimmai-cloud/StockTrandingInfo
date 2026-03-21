@@ -71,6 +71,13 @@ export async function renderAnalysisResults(container, supabase) {
     }
 }
 
+function translateSentiment(raw) {
+    const s = (raw || '').toUpperCase();
+    if (s.includes('BULL') || s.includes('BUY'))  return { label: '🔥 상승 우위', color: 'color:#155724; font-weight:700; background:#d4edda; padding:3px 8px; border-radius:4px;' };
+    if (s.includes('BEAR') || s.includes('SELL')) return { label: '❄️ 하락 우위', color: 'color:#721c24; font-weight:700; background:#f8d7da; padding:3px 8px; border-radius:4px;' };
+    return { label: '⚖️ 중립', color: 'color:#555; background:#eee; padding:3px 8px; border-radius:4px;' };
+}
+
 async function fetchAndRenderData() {
     if (isEndOfData) return;
     
@@ -92,28 +99,21 @@ async function fetchAndRenderData() {
 
         if (analyses && analyses.length > 0) {
             analyses.forEach(item => {
-                const sentimentText = (item.sentiment || 'N/A').toUpperCase();
-                let sentimentColor = '';
-                if (sentimentText.includes('BULL') || sentimentText.includes('BUY')) {
-                    sentimentColor = 'color: #238636; font-weight: 700; background: #e6f6e6; padding: 3px 6px; border-radius: 4px;';
-                } else if (sentimentText.includes('BEAR') || sentimentText.includes('SELL')) {
-                    sentimentColor = 'color: #da3633; font-weight: 700; background: #ffe6e6; padding: 3px 6px; border-radius: 4px;';
-                } else {
-                    sentimentColor = 'color: #555; background: #eee; padding: 3px 6px; border-radius: 4px;';
-                }
-                                       
+                const { label: sentimentLabel, color: sentimentColor } = translateSentiment(item.sentiment);
+                               
                 const compName = item.companies ? item.companies.name : '알수없음(미등록)';
                 const compSymbol = item.companies ? item.companies.symbol : '-';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="text-align:center;"><b>${compName}</b><br/><span style="font-size:12px;color:#777;">(${compSymbol})</span></td>
-                    <td style="text-align:center;"><span style="${sentimentColor}">${sentimentText}</span></td>
+                    <td style="text-align:center;"><span style="${sentimentColor}">${sentimentLabel}</span></td>
                     <td style="white-space: pre-wrap; font-size: 13px; line-height: 1.5;">${item.analysis_content || '분석 내용 없음'}</td>
                     <td style="font-size: 12px; color: #555; text-align:center;">${new Date(item.created_at).toLocaleString()}</td>
                 `;
                 tbody.appendChild(tr);
             });
+
 
             currentPage++;
 
