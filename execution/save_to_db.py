@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import requests
 from dotenv import load_dotenv
@@ -114,28 +115,40 @@ def save_to_supabase():
                     # 제목이 있고 정상적인 기사인 경우에만 저장 진행
                     if article.get('title') and "**" not in article.get('title'):
                         # Supabase 테이블(news_articles) 구조에 맞게 데이터를 포장(mapping)
+                        # [날짜 형식 보정] SerpApi는 "2 days ago" 같은 상대적 시간을 주기도 합니다.
+                        # DB는 이를 이해하지 못하므로, 정규 형식이 아닌 경우 현재 시간으로 대체합니다.
+                        raw_pub_date = article.get('timestamp', '')
+                        if not raw_pub_date or 'ago' in str(raw_pub_date).lower() or len(str(raw_pub_date)) < 10:
+                            pub_date = datetime.now(KST).isoformat()
+                        else:
+                            pub_date = raw_pub_date
+
                         news_payload = {
                             "company_id": company_uuid,
-                            "company_name": stock['name'], # 기업 이름 추가 (관리자 조회용)
+                            "company_name": stock['name'],
                             "title": article['title'],
                             "source_url": article.get('url'),
-                            "content": article.get('snippet', ''), # 요약본을 본문 내용으로 저장
-                            "published_at": article.get('timestamp', datetime.now(KST).isoformat()),
-                            
-                            # -- 신규 추가된 확장 필드 --
-                            "thumbnail_url": article.get('thumbnail_url', ''), # 기사 썸네일 이미지 주소
-                            "snippet": article.get('snippet', ''),             # 기사 요약본
-                            "source_name": article.get('source', ''),          # 언론사 이름
-                            "position": i + 1                                  # 뉴스 노출 순위 (1, 2, 3...)
+                            "content": article.get('snippet', ''),
+                            "published_at": pub_date,
+                            "thumbnail_url": article.get('thumbnail_url', ''),
+                            "snippet": article.get('snippet', ''),
+                            "source_name": article.get('source', ''),
+                            "position": i + 1
                         }
                         
-                        # 뉴스 데이터 Insert 시 중복 에러가 나면 무시하도록 처리 (idempotency)
-                        # 또는 단순히 post 요청을 보냄
-                        requests.post(
+                        news_resp = requests.post(
                             f"{supabase_url}/rest/v1/news_articles",
                             headers=headers,
                             json=news_payload
                         )
+                        
+                        if news_resp.status_code not in [200, 201, 204]:
+                            # 출력 시 인코딩 에러 방지를 위해 에러 메시지를 안전하게 처리
+                            safe_title = article.get('title', 'Unknown').encode(sys.stdout.encoding, errors='replace').decode(sys.stdout.encoding)
+                            print(f"  [Error] Failed to save news article: {safe_title} ({news_resp.text})")
+                        else:
+                            # 성공 로그도 너무 많이 찍히면 보기 힘드니 요약
+                            pass
                 
     print("Database sync (Companies & News) completed.")
 
