@@ -90,6 +90,7 @@ export async function renderAnalysisResults(container, supabase) {
             .from('stock_analysis')
             .select('*, companies (name, symbol)')
             .order('created_at', { ascending: false })
+            .order('id', { ascending: false }) // 날짜가 같을 경우 최신 ID순으로 정렬
             .range(from, to);
 
         const tbody = document.getElementById('list-body');
