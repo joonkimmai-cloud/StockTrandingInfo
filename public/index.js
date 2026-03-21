@@ -1,24 +1,27 @@
 /*
-   index.js
-   이메일 구독 플로우:
+   index.js v3
+   이메일 구독 플로우 (완전 클라이언트사이드):
    1. 이메일 입력 → 구독 버튼 클릭
-   2. [서버] 중복 확인 (이미 있으면 경고창)
-   3. 신규이면 6자리 인증코드 생성 + 이메일 발송
-   4. [팝업] 6자리 코드 입력
-   5. 틀린 코드 → 에러 메시지 / 올바른 코드 → 구독 등록 완료
+   2. Supabase에서 중복 확인 → 이미 있으면 경고창
+   3. 6자리 코드 생성 → Supabase email_verifications 테이블에 저장
+   4. EmailJS로 인증 코드 이메일 발송
+   5. 팝업에서 코드 입력 → Supabase에서 검증
+   6. 성공 → subscribers 테이블에 등록
 */
 
+// ─── Supabase 설정 ────────────────────────────────────────────
 const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
+let sb;
+try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
 
-// Cloudflare Pages Functions 엔드포인트 (배포 환경)
-// 로컬에서도 wrangler pages dev 로 동일하게 동작합니다.
-const API = {
-    sendCode:   '/api/send-verify-code',
-    verifyCode: '/api/verify-code'
-};
+// ─── EmailJS 설정 ─────────────────────────────────────────────
+// emailjs.com 에서 무료 계정 생성 후 아래 값을 설정해주세요.
+const EMAILJS_SERVICE_ID  = "service_stockalpha";   // EmailJS 대시보드 > Email Services
+const EMAILJS_TEMPLATE_ID = "template_verify";      // EmailJS 대시보드 > Email Templates
+const EMAILJS_PUBLIC_KEY  = "YOUR_EMAILJS_PUBLIC_KEY"; // EmailJS 대시보드 > Account > Public Key
 
-// ─── 인증 팝업 삽입 ──────────────────────────────────────────
+// ─── 팝업 HTML 주입 ──────────────────────────────────────────
 document.body.insertAdjacentHTML('beforeend', `
 <div id="verify-overlay" style="
     display:none; position:fixed; inset:0;
@@ -30,57 +33,89 @@ document.body.insertAdjacentHTML('beforeend', `
       text-align:center; animation:fadeUp .25s ease;">
     <div style="font-size:2.4rem; margin-bottom:10px;">📬</div>
     <h3 style="margin:0 0 8px; color:#1a1a2e; font-size:1.15rem;">이메일 인증</h3>
-    <p id="verify-email-label" style="font-size:.88rem; color:#555; margin-bottom:20px; word-break:break-all;"></p>
+    <p id="verify-email-label" style="font-size:.88rem; color:#555; margin-bottom:20px;"></p>
     <input id="verify-code-input" type="text" maxlength="6" placeholder="6자리 코드"
-        inputmode="numeric" pattern="[0-9]*"
+        inputmode="numeric"
         style="width:100%; box-sizing:border-box; padding:14px; font-size:1.8rem;
                letter-spacing:10px; text-align:center; border:2px solid #dde3f0;
-               border-radius:10px; outline:none; font-weight:800; color:#004e92;
-               transition:border .2s;">
-    <p id="verify-error" style="min-height:18px; font-size:.84rem; color:#e53e3e; margin:10px 0 0;"></p>
+               border-radius:10px; outline:none; font-weight:800; color:#004e92;">
+    <p id="verify-error" style="min-height:20px; font-size:.84rem; color:#e53e3e; margin:10px 0 0;"></p>
     <button id="verify-confirm-btn"
         style="width:100%; margin-top:14px; padding:13px; font-size:1rem; font-weight:700;
                background:linear-gradient(135deg,#004e92,#0077e6); color:#fff;
-               border:none; border-radius:10px; cursor:pointer; transition:opacity .2s;">
-        확인
-    </button>
+               border:none; border-radius:10px; cursor:pointer;">확인</button>
     <div style="margin-top:14px; font-size:.82rem; color:#999;">
-        <button id="verify-resend-btn"
-            style="background:none; border:none; color:#004e92; cursor:pointer;
-                   font-size:.82rem; text-decoration:underline;">코드 재발송</button>
+        <button id="verify-resend-btn" style="background:none;border:none;color:#004e92;cursor:pointer;font-size:.82rem;text-decoration:underline;">코드 재발송</button>
         &nbsp;·&nbsp;
-        <button id="verify-cancel-btn"
-            style="background:none; border:none; color:#aaa; cursor:pointer; font-size:.82rem;">취소</button>
+        <button id="verify-cancel-btn" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:.82rem;">취소</button>
     </div>
   </div>
 </div>
 <style>
-@keyframes fadeUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
+@keyframes fadeUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
 #verify-code-input:focus { border-color: #004e92; }
 </style>
 `);
 
-// ─── 유틸 ────────────────────────────────────────────────────
-function showOverlay() {
-    document.getElementById('verify-overlay').style.display = 'flex';
-    document.getElementById('verify-code-input').focus();
-}
-function hideOverlay() {
-    document.getElementById('verify-overlay').style.display = 'none';
-    document.getElementById('verify-code-input').value = '';
-    document.getElementById('verify-error').innerText = '';
-}
-function setVerifyError(msg) {
-    document.getElementById('verify-error').innerText = msg;
-}
-
-// 숫자만 입력 허용
+// 숫자만 입력
 document.getElementById('verify-code-input').addEventListener('input', e => {
     e.target.value = e.target.value.replace(/\D/g, '');
 });
+
+function showOverlay(email) {
+    document.getElementById('verify-email-label').innerText = `${email}\n위 주소로 발송된 6자리 인증 코드를 입력하세요.`;
+    document.getElementById('verify-code-input').value = '';
+    document.getElementById('verify-error').innerText = '';
+    document.getElementById('verify-overlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('verify-code-input').focus(), 100);
+}
+function hideOverlay() {
+    document.getElementById('verify-overlay').style.display = 'none';
+}
+function setErr(msg) { document.getElementById('verify-error').innerText = msg; }
+
+// ─── Supabase 헬퍼 (REST 직접 호출) ─────────────────────────
+async function sbGet(table, query) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}&select=*`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    return r.json();
+}
+async function sbInsert(table, payload, prefer='return=minimal') {
+    return fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+                   'Content-Type': 'application/json', Prefer: prefer },
+        body: JSON.stringify(payload)
+    });
+}
+async function sbDelete(table, query) {
+    return fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+        method: 'DELETE',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+}
+
+// ─── 인증코드 이메일 발송 (EmailJS) ─────────────────────────
+async function sendCodeEmail(email, code) {
+    // EmailJS SDK가 로드된 경우 사용
+    if (typeof emailjs !== 'undefined') {
+        return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+            to_email: email,
+            verify_code: code,
+            expiry_minutes: '10'
+        }, EMAILJS_PUBLIC_KEY);
+    }
+    // fallback: Cloudflare Pages Function 시도
+    const res = await fetch('/api/send-verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code })
+    });
+    if (!res.ok) throw new Error('이메일 발송 서비스에 연결할 수 없습니다.');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+}
 
 // ─────────────────────────────────────────────────────────────
 // 1단계: 구독 버튼 클릭
@@ -91,7 +126,6 @@ async function subscribe() {
     const btn        = document.getElementById('btnText');
     const email      = (emailInput.value || '').trim().toLowerCase();
 
-    // 기본 포맷 확인
     if (!email || !email.includes('@') || !email.includes('.')) {
         messageEl.innerHTML = '<span class="error">올바른 이메일 주소를 입력해 주세요.</span>';
         return;
@@ -99,38 +133,40 @@ async function subscribe() {
 
     btn.innerText = '처리 중...';
     btn.disabled  = true;
-    messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">서버에 연결 중...</span>';
+    messageEl.innerHTML = '';
 
     try {
-        const res = await fetch(API.sendCode, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-        });
-        const result = await res.json();
-
-        if (result.duplicate) {
-            // ─ 중복 이메일 경고창
+        // ① 중복 확인
+        const existing = await sbGet('subscribers', `email=eq.${encodeURIComponent(email)}`);
+        if (existing && existing.length > 0) {
             alert(`⚠️ 이미 등록된 이메일입니다!\n\n'${email}' 주소는 이미 구독 중입니다.\n다른 이메일 주소를 사용해 주세요.`);
             messageEl.innerHTML = '<span class="error">이미 등록된 이메일입니다.</span>';
             return;
         }
 
-        if (!result.ok) {
-            messageEl.innerHTML = `<span class="error">${result.error || '오류가 발생했습니다. 다시 시도해 주세요.'}</span>`;
-            return;
+        // ② 6자리 코드 생성
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+        // ③ Supabase에 코드 저장 (기존 것 삭제 후 새로 삽입)
+        await sbDelete('email_verifications', `email=eq.${encodeURIComponent(email)}`);
+        const saveResp = await sbInsert('email_verifications', { email, code, expires_at: expiresAt, verified: false });
+        if (!saveResp.ok && saveResp.status !== 201) {
+            throw new Error(`코드 저장 실패 (${saveResp.status})`);
         }
 
-        // ─ 성공 → 팝업 열기
-        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 인증 코드를 이메일로 발송했습니다.</span>';
-        document.getElementById('verify-email-label').innerText =
-            `${email}\n으로 발송된 6자리 인증 코드를 입력해 주세요.`;
-        showOverlay();
-        setupVerifyButtons(email);
+        // ④ 이메일 발송
+        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 인증 코드 발송 중...</span>';
+        await sendCodeEmail(email, code);
 
-    } catch (err) {
-        console.error(err);
-        messageEl.innerHTML = '<span class="error">서버 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.</span>';
+        // ⑤ 팝업 표시
+        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 이메일을 확인하여 인증 코드를 입력해 주세요.</span>';
+        showOverlay(email);
+        bindVerifyButtons(email);
+
+    } catch(err) {
+        console.error('subscribe error:', err);
+        messageEl.innerHTML = `<span class="error">오류: ${err.message}</span>`;
     } finally {
         btn.innerText = '무료 리포트 구독하기';
         btn.disabled  = false;
@@ -138,33 +174,24 @@ async function subscribe() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 팝업 버튼 이벤트 연결
+// 팝업 버튼 이벤트
 // ─────────────────────────────────────────────────────────────
-function setupVerifyButtons(email) {
-    // 확인 버튼
+function bindVerifyButtons(email) {
     document.getElementById('verify-confirm-btn').onclick = () => verifyAndRegister(email);
-    // Enter 키
-    document.getElementById('verify-code-input').onkeydown = e => {
-        if (e.key === 'Enter') verifyAndRegister(email);
-    };
+    document.getElementById('verify-code-input').onkeydown = e => { if (e.key === 'Enter') verifyAndRegister(email); };
 
-    // 재발송 버튼
     document.getElementById('verify-resend-btn').onclick = async () => {
-        setVerifyError('재발송 중...');
+        setErr('재발송 중...');
         try {
-            const r = await fetch(API.sendCode, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-            const rj = await r.json();
-            setVerifyError(rj.ok ? '✅ 재발송 완료! 이메일을 확인해 주세요.' : (rj.error || '재발송 실패'));
-        } catch {
-            setVerifyError('재발송 중 오류가 발생했습니다.');
-        }
+            const code = String(Math.floor(100000 + Math.random() * 900000));
+            const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+            await sbDelete('email_verifications', `email=eq.${encodeURIComponent(email)}`);
+            await sbInsert('email_verifications', { email, code, expires_at: expiresAt, verified: false });
+            await sendCodeEmail(email, code);
+            setErr('✅ 재발송 완료! 이메일을 확인해 주세요.');
+        } catch(e) { setErr(`재발송 실패: ${e.message}`); }
     };
 
-    // 취소 버튼
     document.getElementById('verify-cancel-btn').onclick = () => {
         hideOverlay();
         document.getElementById('message').innerHTML = '';
@@ -172,49 +199,60 @@ function setupVerifyButtons(email) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2단계: 인증코드 검증 + 구독자 등록
+// 2단계: 코드 검증 + 구독 등록
 // ─────────────────────────────────────────────────────────────
 async function verifyAndRegister(email) {
-    const codeInput = document.getElementById('verify-code-input');
+    const codeInput  = document.getElementById('verify-code-input');
     const confirmBtn = document.getElementById('verify-confirm-btn');
     const code = codeInput.value.trim();
 
-    if (code.length !== 6) {
-        setVerifyError('⚠️ 6자리 코드를 모두 입력해 주세요.');
-        codeInput.focus();
-        return;
-    }
+    if (code.length !== 6) { setErr('⚠️ 6자리 코드를 모두 입력해 주세요.'); codeInput.focus(); return; }
 
     confirmBtn.innerText = '확인 중...';
     confirmBtn.disabled  = true;
-    setVerifyError('');
+    setErr('');
 
     try {
-        const res = await fetch(API.verifyCode, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code })
-        });
-        const result = await res.json();
+        // ① Supabase에서 코드 조회
+        const records = await sbGet('email_verifications', `email=eq.${encodeURIComponent(email)}`);
 
-        if (result.ok) {
-            // ─ 인증 성공!
-            hideOverlay();
-            document.getElementById('message').innerHTML =
-                '<span class="success">🎉 구독 완료! 내일 아침부터 리포트가 발송됩니다.</span>';
-            document.getElementById('email').value = '';
+        if (!records || records.length === 0) {
+            setErr('인증 요청 정보가 없습니다. 처음부터 다시 시도해 주세요.');
+            return;
+        }
+        const rec = records[0];
+        const now = new Date().toISOString();
 
-        } else if (result.expired) {
-            setVerifyError('⌛ 코드가 만료되었습니다. [코드 재발송] 버튼을 눌러주세요.');
-        } else {
-            // ─ 틀린 코드
-            setVerifyError(`❌ ${result.error || '코드가 일치하지 않습니다. 다시 확인해 주세요.'}`);
+        // ② 만료 확인
+        if (rec.expires_at < now) {
+            setErr('⌛ 코드가 만료되었습니다. [코드 재발송]을 눌러주세요.');
+            return;
+        }
+
+        // ③ 코드 일치 확인
+        if (rec.code !== code) {
+            setErr('❌ 인증 코드가 일치하지 않습니다. 다시 확인해 주세요.');
             codeInput.value = '';
             codeInput.focus();
+            return;
         }
-    } catch (err) {
-        console.error(err);
-        setVerifyError('서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+
+        // ④ 성공 → subscribers 등록
+        const regResp = await sbInsert('subscribers', { email }, 'resolution=merge-duplicates');
+        if (!regResp.ok && regResp.status !== 201) {
+            throw new Error('구독자 등록에 실패했습니다.');
+        }
+
+        // ⑤ 인증 레코드 삭제
+        await sbDelete('email_verifications', `email=eq.${encodeURIComponent(email)}`);
+
+        hideOverlay();
+        document.getElementById('message').innerHTML = '<span class="success">🎉 구독 완료! 내일 아침부터 리포트가 발송됩니다.</span>';
+        document.getElementById('email').value = '';
+
+    } catch(err) {
+        console.error('verify error:', err);
+        setErr(`오류: ${err.message}`);
     } finally {
         confirmBtn.innerText = '확인';
         confirmBtn.disabled  = false;
