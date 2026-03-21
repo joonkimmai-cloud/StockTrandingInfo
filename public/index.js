@@ -13,13 +13,13 @@
 const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
 let sb;
-try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { }
 
 // ─── EmailJS 설정 ─────────────────────────────────────────────
 // emailjs.com 에서 무료 계정 생성 후 아래 값을 설정해주세요.
-const EMAILJS_SERVICE_ID  = "service_stockalpha";   // EmailJS 대시보드 > Email Services
+const EMAILJS_SERVICE_ID = "service_stockalpha";   // EmailJS 대시보드 > Email Services
 const EMAILJS_TEMPLATE_ID = "template_verify";      // EmailJS 대시보드 > Email Templates
-const EMAILJS_PUBLIC_KEY  = "YOUR_EMAILJS_PUBLIC_KEY"; // EmailJS 대시보드 > Account > Public Key
+const EMAILJS_PUBLIC_KEY = "5pIFRIOsofsS22DQ4"; // EmailJS 대시보드 > Account > Public Key
 
 // ─── 팝업 HTML 주입 ──────────────────────────────────────────
 document.body.insertAdjacentHTML('beforeend', `
@@ -81,11 +81,13 @@ async function sbGet(table, query) {
     });
     return r.json();
 }
-async function sbInsert(table, payload, prefer='return=minimal') {
+async function sbInsert(table, payload, prefer = 'return=minimal') {
     return fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
         method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
-                   'Content-Type': 'application/json', Prefer: prefer },
+        headers: {
+            apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json', Prefer: prefer
+        },
         body: JSON.stringify(payload)
     });
 }
@@ -122,9 +124,9 @@ async function sendCodeEmail(email, code) {
 // ─────────────────────────────────────────────────────────────
 async function subscribe() {
     const emailInput = document.getElementById('email');
-    const messageEl  = document.getElementById('message');
-    const btn        = document.getElementById('btnText');
-    const email      = (emailInput.value || '').trim().toLowerCase();
+    const messageEl = document.getElementById('message');
+    const btn = document.getElementById('btnText');
+    const email = (emailInput.value || '').trim().toLowerCase();
 
     if (!email || !email.includes('@') || !email.includes('.')) {
         messageEl.innerHTML = '<span class="error">올바른 이메일 주소를 입력해 주세요.</span>';
@@ -132,7 +134,7 @@ async function subscribe() {
     }
 
     btn.innerText = '처리 중...';
-    btn.disabled  = true;
+    btn.disabled = true;
     messageEl.innerHTML = '';
 
     try {
@@ -164,12 +166,12 @@ async function subscribe() {
         showOverlay(email);
         bindVerifyButtons(email);
 
-    } catch(err) {
+    } catch (err) {
         console.error('subscribe error:', err);
         messageEl.innerHTML = `<span class="error">오류: ${err.message}</span>`;
     } finally {
         btn.innerText = '무료 리포트 구독하기';
-        btn.disabled  = false;
+        btn.disabled = false;
     }
 }
 
@@ -189,7 +191,7 @@ function bindVerifyButtons(email) {
             await sbInsert('email_verifications', { email, code, expires_at: expiresAt, verified: false });
             await sendCodeEmail(email, code);
             setErr('✅ 재발송 완료! 이메일을 확인해 주세요.');
-        } catch(e) { setErr(`재발송 실패: ${e.message}`); }
+        } catch (e) { setErr(`재발송 실패: ${e.message}`); }
     };
 
     document.getElementById('verify-cancel-btn').onclick = () => {
@@ -202,14 +204,14 @@ function bindVerifyButtons(email) {
 // 2단계: 코드 검증 + 구독 등록
 // ─────────────────────────────────────────────────────────────
 async function verifyAndRegister(email) {
-    const codeInput  = document.getElementById('verify-code-input');
+    const codeInput = document.getElementById('verify-code-input');
     const confirmBtn = document.getElementById('verify-confirm-btn');
     const code = codeInput.value.trim();
 
     if (code.length !== 6) { setErr('⚠️ 6자리 코드를 모두 입력해 주세요.'); codeInput.focus(); return; }
 
     confirmBtn.innerText = '확인 중...';
-    confirmBtn.disabled  = true;
+    confirmBtn.disabled = true;
     setErr('');
 
     try {
@@ -250,11 +252,11 @@ async function verifyAndRegister(email) {
         document.getElementById('message').innerHTML = '<span class="success">🎉 구독 완료! 내일 아침부터 리포트가 발송됩니다.</span>';
         document.getElementById('email').value = '';
 
-    } catch(err) {
+    } catch (err) {
         console.error('verify error:', err);
         setErr(`오류: ${err.message}`);
     } finally {
         confirmBtn.innerText = '확인';
-        confirmBtn.disabled  = false;
+        confirmBtn.disabled = false;
     }
 }
