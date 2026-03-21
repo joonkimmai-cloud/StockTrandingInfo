@@ -7,15 +7,14 @@ const PAGE_SIZE = 15;
 function cleanSummary(text) {
     if (!text) return '내용 없음';
 
-    // 에러 키워드 뒤에 오는 JSON 블록({ ... }) 제거
-    // 패턴 1: "사유: AI Analysis failed: API Error NNN: {...}"
-    let cleaned = text.replace(/사유:\s*AI Analysis failed:[^{]*\{[\s\S]*?\}(?:\s*\})?/g, '');
+    // 1. "사유:" 키워드부터 그 뒤의 모든 내용(줄바꿈 포함)을 "기사를 참고해주세요."로 바꿉니다.
+    // [\s\S]* 는 줄바꿈을 포함한 모든 문자를 의미합니다.
+    let cleaned = text.replace(/사유:[\s\S]*$/g, '기사를 참고해주세요.');
 
-    // 패턴 2: "사유: ..." 이후 JSON 형태 전체 제거 (혹시 다른 형태도 대응)
-    cleaned = cleaned.replace(/사유:.*$/ms, '기사를 참고해주세요.');
-
-    // 남아있는 날 JSON 블록 제거 ({ 로 시작하는 여러 줄 블록)
-    cleaned = cleaned.replace(/\{[\s\S]*?\}/g, '');
+    // 2. 혹시라도 남아있을 수 있는 JSON 찌꺼기들 (괄호, 콤마 등)을 한 번 더 제거합니다.
+    cleaned = cleaned.replace(/\{[\s\S]*?\}/g, ''); // 중괄호 블록 제거
+    cleaned = cleaned.replace(/[\[\]\{\}]/g, '');    // 개별 괄호 제거
+    cleaned = cleaned.replace(/^\s*,\s*$/gm, '');   // 쉼표만 있는 줄 제거
 
     return cleaned.trim() || '내용 없음';
 }
