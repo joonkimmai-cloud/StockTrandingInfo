@@ -58,12 +58,15 @@ async function handleLogin() {
             throw new Error('데이터베이스에서 해당 유저를 찾을 수 없습니다.');
         }
 
-        // 7. 사용자가 입력한 패스워드가 맞는지 검사하는 아주 중요한 암호 해독 부분! (bcrypt.js 외부 라이브러리 사용)
-        // 브라우저마다 불리워지는 이름이 살짝 다를 수 있어 혹시 모를 상황을 대비합니다 (dcodeIO.bcrypt 또는 그냥 bcrypt).
+        // 7. 비밀번호 검증 (bcrypt)
+        // 주의: Python bcrypt는 $2b$ prefix를 생성하지만 브라우저용 bcryptjs는 $2a$만 지원합니다.
+        // 따라서 DB에서 가져온 해시의 $2b$를 $2a$로 변환 후 비교합니다.
         const bCryptLib = (typeof dcodeIO !== 'undefined') ? dcodeIO.bcrypt : bcrypt;
-        
-        // compareSync: "내가 친 원본 비밀번호"와 "DB에서 가져온 암호화 기호"가 사실 같은 뜻인지 수학적으로 계산해보고 맞으면 true(참)를 반환.
-        const isValid = bCryptLib.compareSync(password, data.password_hash);
+
+        // $2b$ → $2a$ 변환 (Python↔JS bcrypt 호환성 처리)
+        const normalizedHash = data.password_hash.replace(/^\$2b\$/, '$2a$');
+
+        const isValid = bCryptLib.compareSync(password, normalizedHash);
 
         if (isValid) { // 암호가 완벽하게 맞다면 (True 였다면)
             
