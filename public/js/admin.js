@@ -194,17 +194,24 @@ window.executeBatchAPI = async function() {
             closeBtn.style.display = 'block';
         }
     } else {
-        // [서버 환경 / Cloudflare Pages]: GitHub Actions API 원격 호출로 배치 실행
-        const githubToken = prompt("GitHub Actions 원격 실행을 위해 GitHub 토큰(PAT)을 입력해주세요.\n(권한: repo 또는 workflow 지원)");
+        // 브라우저 저장소(localStorage)에서 기존에 저장된 토큰이 있는지 확인합니다.
+        let githubToken = localStorage.getItem('github_token');
         
         if (!githubToken) {
-            logWin.innerHTML += '> 토큰 입력이 취소되어 배치를 시작하지 못했습니다.\n';
-            statusText.innerText = '실행 취소됨';
-            statusText.style.color = 'var(--error-color)';
-            okBtn.style.display = 'block';
-            okBtn.innerText = '닫기';
-            closeBtn.style.display = 'block';
-            return;
+            githubToken = prompt("GitHub Actions 원격 실행을 위해 GitHub 토큰(PAT)을 입력해주세요.\n(권한: repo 또는 workflow 지원)\n\n※ 한 번 입력하면 브라우저에 안전하게 저장되어 다음에는 묻지 않습니다.");
+            
+            if (!githubToken) {
+                logWin.innerHTML += '> 토큰 입력이 취소되어 배치를 시작하지 못했습니다.\n';
+                statusText.innerText = '실행 취소됨';
+                statusText.style.color = 'var(--error-color)';
+                okBtn.style.display = 'block';
+                okBtn.innerText = '닫기';
+                closeBtn.style.display = 'block';
+                return;
+            }
+            
+            // 입력받은 토큰을 저장합니다.
+            localStorage.setItem('github_token', githubToken.trim());
         }
 
         try {
@@ -232,6 +239,13 @@ window.executeBatchAPI = async function() {
                 statusText.style.color = '#238636'; 
             } else {
                 const errorData = await response.json();
+                
+                // 만약 401(Unauthorized) 오류가 났다면 저장된 토큰이 틀린 것이므로 삭제합니다.
+                if (response.status === 401) {
+                    localStorage.removeItem('github_token');
+                    logWin.innerHTML += `> ❌ 토큰이 유효하지 않습니다. 저장된 이전 정보를 삭제했으니 다음 실행 시 다시 입력해주세요.\n`;
+                }
+
                 logWin.innerHTML += `> ❌ GitHub 서버 연동 실패 (Code ${response.status}):\n${errorData.message || '권한 유효성을 확인해주세요'}\n`;
                 statusText.innerText = '실행 실패 (권한 에러)';
                 statusText.style.color = 'var(--error-color)';
