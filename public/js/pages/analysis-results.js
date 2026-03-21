@@ -11,12 +11,17 @@ export async function renderAnalysisResults(container, supabase) {
     container.innerHTML = `
         <div class="data-header">
             <h2>Analysis Results (AI 분석 결과)</h2>
-            <button class="btn-blue" onclick="loadPage('analysis-results')">새로고침(Refresh)</button>
+            <button class="btn-blue" id="analysis-refresh-btn">새로고침(Refresh)</button>
         </div>
         <div id="analysis-content">
             <div style="padding: 40px; text-align: center;"><div class="loader"></div> 데이터를 불러오는 중입니다...</div>
         </div>
     `;
+
+    // 새로고침 버튼: window.loadPage 대신 직접 renderAnalysisResults 재호출
+    document.getElementById('analysis-refresh-btn').addEventListener('click', () => {
+        renderAnalysisResults(container, supabase);
+    });
 
     try {
         // Fetch latest market report once
