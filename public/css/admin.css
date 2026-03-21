@@ -335,3 +335,68 @@ tr:hover td { background: #fafafa; }
     color: #ff6b6b;
     font-weight: bold;
 }
+
+/* =======================================
+   페이지네이션 (Pagination)
+======================================= */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 16px 0 8px;
+    flex-wrap: wrap;
+}
+
+.page-btn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color);
+    background: #fff;
+    color: var(--text-dark);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 500;
+    transition: 0.15s;
+}
+
+.page-btn:hover:not(.disabled):not(.active) {
+    background: #f0f4fa;
+    border-color: var(--primary-blue);
+    color: var(--primary-blue);
+}
+
+.page-btn.active {
+    background: var(--primary-blue);
+    color: #fff;
+    border-color: var(--primary-blue);
+    font-weight: 700;
+}
+
+.page-btn.disabled {
+    color: #ccc;
+    cursor: not-allowed;
+    background: #fafafa;
+}
+
+.page-ellipsis {
+    padding: 0 4px;
+    color: var(--text-muted);
+    line-height: 34px;
+}
+
+.page-info {
+    margin-left: 12px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+/* 순번 컬럼 */
+.col-no {
+    width: 50px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
