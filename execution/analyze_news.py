@@ -7,6 +7,14 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
+# Windows 콘솔에서 utf-8 출력 강제 설정 (이모지/한글 깨짐 방지)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+from zoneinfo import ZoneInfo
+from dotenv import load_dotenv
+
 KST = ZoneInfo('Asia/Seoul')
 
 load_dotenv()
@@ -53,8 +61,8 @@ async def generate_analysis(stock_data):
     {json.dumps(stock_data, ensure_ascii=False, indent=2)}
     
     [요청 사항]
-    1. 각 주식별로 거래량이 왜 급증했는지(뉴스 기반) 전문적인 경제 분석을 덧붙여 주세요.
-    2. 시장 전반의 테마(예: AI, 에너지, 환율 영향)를 파악해 주세요.
+    1. 각 주식별로 거래량이 왜 급증했는지 전문적인 경제, 사회, 문화, 정치적 관점에서 분석을 덧붙여 주세요.
+    2. 시장 전반의 테마(예: AI, 에너지, 환율, 전쟁 영향, 금리, 국제 정세 등)를 파악해 주세요.
     3. 경제학적 개념을 사용하여 오늘의 증시를 예측해 주세요.
     4. 분석은 한국어로 작성하며, 에널리스트 톤을 유지하세요.
     
@@ -203,12 +211,37 @@ async def main():
         print("[3단계] AI 분석 리포트 생성 종료")
     except Exception as e:
         print(f"===========================================================")
-        print(f"🚨 AI API 통신 장애 발생! 기본 수집 데이터로 폴백(Fallback) 진행")
-        print(f"에러내역: {e}")
+        print(f"[WARN] AI API error occurred! Falling back to raw headlines.")
+        print(f"Error detail: {e}")
         print(f"===========================================================")
+        
+        # fallback for DB & Email
+        fallback_kr = []
+        for stock in news_data.get('kr', []):
+            news_text = "\n".join([f"• {n.get('title', '')}" for n in stock.get('news', [])])
+            if "**" in news_text: news_text = "- 수집된 관련 기사 및 공시 없음"
+            fallback_kr.append({
+                "name": stock.get('name'),
+                "analysis": f"[AI 텍스트 분석 지연 - 수집된 헤드라인]\n{news_text}",
+                "sentiment": "Neutral"
+            })
+            
+        fallback_us = []
+        for stock in news_data.get('us', []):
+            news_text = "\n".join([f"• {n.get('title', '')}" for n in stock.get('news', [])])
+            if "**" in news_text: news_text = "- 수집된 관련 기사 및 공시 없음"
+            fallback_us.append({
+                "name": stock.get('name'),
+                "analysis": f"[AI 텍스트 분석 지연 - 수집된 헤드라인]\n{news_text}",
+                "sentiment": "Neutral"
+            })
+
         final_report = {
-            "status": "error",
-            "error_message": str(e),
+            "status": "success",
+            "market_summary": f"⚠️ AI 분석 지연 (API 응답 실패). AI 시스템 에러로 부득이하게 로우 데이터(단순 기사 제목)를 전송합니다.\n사유: {str(e)}",
+            "prediction": "가장 많이 검색된 주식들의 헤드라인을 직접 참조하여 주시기 바랍니다.",
+            "kr_analysis": fallback_kr,
+            "us_analysis": fallback_us,
             "raw_data": news_data
         }
     

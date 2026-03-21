@@ -8,6 +8,14 @@ KST = ZoneInfo('Asia/Seoul')
 
 load_dotenv()
 
+import math
+
+def sanitize(value):
+    """NaN/Inf 등 JSON 비호환 float 값을 None으로 변환합니다."""
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+        return None
+    return value
+
 def save_to_supabase():
     # 1. 필수 데이터 파일 확인: 주식 데이터와 뉴스 데이터가 제대로 수집되었는지 체크
     if not os.path.exists('.tmp/market_data.json') or not os.path.exists('.tmp/news_data.json'):
@@ -79,14 +87,14 @@ def save_to_supabase():
             # [과정 B] 매일 변동되는 상세 지표(가격, PER, 기대수익률, 기업가치 등)를 이력(history) 테이블에 따로 추가(Insert)
             history_payload = {
                 "company_id": company_uuid,
-                "price": stock.get('price'),
-                "change_rate": stock.get('change'),
-                "rvol": stock.get('rvol'),
+                "price": sanitize(stock.get('price')),
+                "change_rate": sanitize(stock.get('change')),
+                "rvol": sanitize(stock.get('rvol')),
                 "marcap": stock.get('marcap'),
-                "per": stock.get('per'),
-                "pbr": stock.get('pbr'),
-                "annual_price_change": stock.get('annual_price_change'),
-                "expected_return": stock.get('expected_return'),
+                "per": sanitize(stock.get('per')),
+                "pbr": sanitize(stock.get('pbr')),
+                "annual_price_change": sanitize(stock.get('annual_price_change')),
+                "expected_return": sanitize(stock.get('expected_return')),
                 "enterprise_value": stock.get('enterprise_value'),
                 "recorded_at": datetime.now(KST).isoformat()
             }
@@ -140,53 +148,53 @@ def save_to_supabase():
             print(f"Syncing AI Analysis report for {today_date}...")
             
             # 1. market_reports 에 먼저 INSERT 후 id 가져오기
-        market_report_payload = {
-            "report_date": today_date,
-            "market_summary": report_data.get('market_summary', ''),
-            "investment_strategy": report_data.get('prediction', ''),
-            "prediction": report_data.get('prediction', ''),
-            "created_at": datetime.now(KST).isoformat()
-        }
-        
-        mr_resp = requests.post(
-            f"{supabase_url}/rest/v1/market_reports?on_conflict=report_date",
-            headers=headers,
-            json=market_report_payload
-        )
-        
-        if mr_resp.status_code in [200, 201, 204]:
-            # 방금 넣은 (혹은 이미 있던) 리포트 모델의 ID 획득
-            get_mr = requests.get(f"{supabase_url}/rest/v1/market_reports?report_date=eq.{today_date}&select=id", headers=headers)
-            if get_mr.status_code == 200 and get_mr.json():
-                report_uuid = get_mr.json()[0]['id']
-                
-                # 2. 개별 종목 분석 내역(stock_analysis) 저장
-                # DB의 회사 ID 조회를 일괄적으로 수행
-                all_analysis_list = report_data.get('kr_analysis', []) + report_data.get('us_analysis', [])
-                
-                for item in all_analysis_list:
-                    # 종목명을 기반으로 매칭 불완전하므로, companies 검색 필요하지만,
-                    # 현재 all_stocks의 데이터로 다시 맵핑 가능.
-                    # 여기서는 그냥 단순 삽입.
-                    # 하지만 company_id가 필요함!
-                    c_symbol = next((s['symbol'] for s in all_stocks if s['name'] == item['name']), None)
-                    if not c_symbol: c_symbol = item.get('name') # Fallback if symbol was passed as name
+            market_report_payload = {
+                "report_date": today_date,
+                "market_summary": report_data.get('market_summary', ''),
+                "investment_strategy": report_data.get('prediction', ''),
+                "prediction": report_data.get('prediction', ''),
+                "created_at": datetime.now(KST).isoformat()
+            }
+            
+            mr_resp = requests.post(
+                f"{supabase_url}/rest/v1/market_reports?on_conflict=report_date",
+                headers=headers,
+                json=market_report_payload
+            )
+            
+            if mr_resp.status_code in [200, 201, 204]:
+                # 방금 넣은 (혹은 이미 있던) 리포트 모델의 ID 획득
+                get_mr = requests.get(f"{supabase_url}/rest/v1/market_reports?report_date=eq.{today_date}&select=id", headers=headers)
+                if get_mr.status_code == 200 and get_mr.json():
+                    report_uuid = get_mr.json()[0]['id']
                     
-                    if c_symbol:
-                        get_c = requests.get(f"{supabase_url}/rest/v1/companies?symbol=eq.{c_symbol}&select=id", headers=headers)
-                        if get_c.status_code == 200 and get_c.json():
-                            c_uuid = get_c.json()[0]['id']
-                            
-                            sa_payload = {
-                                "company_id": c_uuid,
-                                "report_id": report_uuid,
-                                "analysis_content": item.get('analysis', ''),
-                                "sentiment": item.get('sentiment', 'Neutral'),
-                                "created_at": datetime.now(KST).isoformat()
-                            }
-                            requests.post(f"{supabase_url}/rest/v1/stock_analysis", headers=headers, json=sa_payload)
-        
-        print("Database sync (AI Analysis) completed.")
+                    # 2. 개별 종목 분석 내역(stock_analysis) 저장
+                    # DB의 회사 ID 조회를 일괄적으로 수행
+                    all_analysis_list = report_data.get('kr_analysis', []) + report_data.get('us_analysis', [])
+                    
+                    for item in all_analysis_list:
+                        # 종목명을 기반으로 매칭 불완전하므로, companies 검색 필요하지만,
+                        # 현재 all_stocks의 데이터로 다시 맵핑 가능.
+                        # 여기서는 그냥 단순 삽입.
+                        # 하지만 company_id가 필요함!
+                        c_symbol = next((s['symbol'] for s in all_stocks if s['name'] == item['name']), None)
+                        if not c_symbol: c_symbol = item.get('name') # Fallback if symbol was passed as name
+                        
+                        if c_symbol:
+                            get_c = requests.get(f"{supabase_url}/rest/v1/companies?symbol=eq.{c_symbol}&select=id", headers=headers)
+                            if get_c.status_code == 200 and get_c.json():
+                                c_uuid = get_c.json()[0]['id']
+                                
+                                sa_payload = {
+                                    "company_id": c_uuid,
+                                    "report_id": report_uuid,
+                                    "analysis_content": item.get('analysis', ''),
+                                    "sentiment": item.get('sentiment', 'Neutral'),
+                                    "created_at": datetime.now(KST).isoformat()
+                                }
+                                requests.post(f"{supabase_url}/rest/v1/stock_analysis", headers=headers, json=sa_payload)
+            
+            print("Database sync (AI Analysis) completed.")
 
 if __name__ == "__main__":
     save_to_supabase()
