@@ -3,7 +3,7 @@ import json
 import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -12,8 +12,7 @@ KST = ZoneInfo('Asia/Seoul')
 load_dotenv()
 
 # Gemini Setup
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 async def fetch_news_for_stock(session, stock):
     # 주식 정보 추출
@@ -115,7 +114,10 @@ async def generate_analysis(stock_data):
     """
     
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt
+        )
         text = response.text.strip()
         if text.startswith('```json'):
             text = text[7:-3].strip()
