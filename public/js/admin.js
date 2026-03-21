@@ -8,6 +8,7 @@ import { renderBatchSummary } from './pages/batch-summary.js';
 import { renderExecutionLogs } from './pages/execution-logs.js';
 import { renderCompanies } from './pages/companies.js';
 import { renderSubscriberList } from './pages/subscriber-list.js';
+import { renderAnalysisResults } from './pages/analysis-results.js';
 
 // ------------------------------------------
 // 1. 보안 체크 및 기본 설정 (Supabase 등)
@@ -43,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('nav-batch-summary').addEventListener('click', () => navTo('batch-summary', 'Monitoring'));
     document.getElementById('nav-execution-logs').addEventListener('click', () => navTo('execution-logs', 'Monitoring'));
     document.getElementById('nav-companies').addEventListener('click', () => navTo('companies', 'Data Management'));
+    document.getElementById('nav-analysis-results').addEventListener('click', () => navTo('analysis-results', 'Data Management'));
     document.getElementById('nav-subscriber-list').addEventListener('click', () => navTo('subscriber-list', 'Subscribers'));
     
     // [단축 팝업창 (모달)] 닫고, 열고, 시작하는 것들에 대한 클릭 연결
@@ -91,6 +93,8 @@ export async function loadPage(pageId) {
         await renderExecutionLogs(contentEl, supabaseClient);
     } else if (pageId === 'companies') {
         await renderCompanies(contentEl, supabaseClient);
+    } else if (pageId === 'analysis-results') {
+        await renderAnalysisResults(contentEl, supabaseClient);
     } else if (pageId === 'subscriber-list') {
         await renderSubscriberList(contentEl, supabaseClient);
     }
