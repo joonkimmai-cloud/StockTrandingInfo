@@ -12,7 +12,7 @@ function cleanSummary(text) {
     let cleaned = text.replace(/사유:\s*AI Analysis failed:[^{]*\{[\s\S]*?\}(?:\s*\})?/g, '');
 
     // 패턴 2: "사유: ..." 이후 JSON 형태 전체 제거 (혹시 다른 형태도 대응)
-    cleaned = cleaned.replace(/사유:.*$/ms, '사유: AI 분석 중 오류가 발생했습니다.');
+    cleaned = cleaned.replace(/사유:.*$/ms, '기사를 참고해주세요.');
 
     // 남아있는 날 JSON 블록 제거 ({ 로 시작하는 여러 줄 블록)
     cleaned = cleaned.replace(/\{[\s\S]*?\}/g, '');
