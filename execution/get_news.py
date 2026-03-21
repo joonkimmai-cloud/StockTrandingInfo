@@ -1,0 +1,114 @@
+import os
+import sys
+import json
+import asyncio
+import aiohttp
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from datetime import datetime
+from zoneinfo import ZoneInfo
+KST = ZoneInfo('Asia/Seoul')
+
+load_dotenv()
+
+async def fetch_news_for_stock(session, stock):
+    # 주식 정보 추출
+    symbol = stock.get('symbol', 'UNKNOWN')
+    name = stock.get('name', 'UNKNOWN')
+    
+    # SerpApi 키 가져오기 (.env 파일에 저장된 값)
+    serpapi_key = os.getenv("SERPAPI_API_KEY")
+    if not serpapi_key:
+        print(f"Error: SERPAPI_API_KEY is not set.")
+        return {**stock, 'news': [{"title": "API Key Error", "url": "#", "source": "System", "snippet": "SERPAPI_API_KEY가 설정되지 않았습니다."}], "news_status": "error"}
+        
+    query = f"{name} {symbol} 주식 뉴스"
+    
+    params = {
+        "engine": "google",
+        "q": query,
+        "tbm": "nws",
+        "api_key": serpapi_key,
+        "num": "5" # 가져올 뉴스 기사 최대 개수
+    }
+    
+    try:
+        print(f"  [2단계] {name}({symbol}) 뉴스 수집 중 (SerpApi 사용)...")
+        async with session.get("https://serpapi.com/search", params=params) as response:
+            if response.status != 200:
+                print(f"Error fetching news for {symbol}: HTTP {response.status}")
+                return {**stock, 'news': [{"title": "API Request Error", "url": "#", "source": "System", "snippet": f"HTTP {response.status}", "thumbnail_url": ""}], "news_status": "error"}
+
+            data = await response.json()
+            
+            articles = []
+            if 'news_results' in data:
+                for item in data['news_results'][:4]:
+                    articles.append({
+                        'title': item.get('title', '제목 없음'),
+                        'url': item.get('link', '#'),
+                        'source': item.get('source', 'Google News'),
+                        'timestamp': item.get('date', datetime.now(KST).isoformat()),
+                        'snippet': item.get('snippet', ''),
+                        'thumbnail_url': item.get('thumbnail', '')
+                    })
+                    
+            status = "success" if articles else "no_news_found"
+            if articles:
+                print(f"  [2단계] {name}({symbol}) 뉴스 기사 수집 완료. (조회 수: {len(articles)})")
+            
+            if not articles:
+                articles = [{
+                    "title": "** 관련 기사 및 공시 없음", 
+                    "url": "#", 
+                    "source": "N/A", 
+                    "snippet": "", 
+                    "thumbnail_url": ""
+                }]
+                
+            return {
+                **stock,
+                'news': articles,
+                'news_status': status,
+                'period': 'SerpApi'
+            }
+    except Exception as e:
+        print(f"Error scraping news for {symbol}: {e}")
+        return {**stock, 'news': [{"title": "뉴스 수집 중 오류 발생", "url": "#", "source": "Error", "snippet": str(e), "thumbnail_url": ""}], "news_status": "error"}
+
+async def main():
+    if not os.path.exists('.tmp/market_data.json'):
+        print("Market data not found. Run get_stock_data.py first.")
+        sys.exit(1)
+
+    with open('.tmp/market_data.json', 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    print("Scraping news for tickers...")
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for stock in data.get('kr', []) + data.get('us', []):
+            tasks.append(fetch_news_for_stock(session, stock))
+        
+        results = await asyncio.gather(*tasks)
+        
+    kr_news = results[:len(data.get('kr', []))]
+    us_news = results[len(data.get('kr', [])):]
+    
+    analysis_input = {
+        'timestamp': data.get('timestamp', datetime.now(KST).isoformat()),
+        'kr': kr_news,
+        'us': us_news
+    }
+    
+    # DB Sync 등으로 넘어갈 수집된 뉴스 데이터 저장
+    with open('.tmp/news_data.json', 'w', encoding='utf-8') as f:
+        json.dump(analysis_input, f, ensure_ascii=False, indent=2)
+    print("Raw news data saved to .tmp/news_data.json")
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Fatal Error during news scraping: {e}")
+        sys.exit(1)

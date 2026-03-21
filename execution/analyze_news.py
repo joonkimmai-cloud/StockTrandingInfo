@@ -1,84 +1,11 @@
 import os
+import sys
 import json
 import asyncio
 import aiohttp
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-from datetime import datetime
-from zoneinfo import ZoneInfo
-KST = ZoneInfo('Asia/Seoul')
 
 load_dotenv()
-
-async def fetch_news_for_stock(session, stock):
-    # 주식 정보 추출
-    symbol = stock['symbol']
-    name = stock['name']
-    
-    # SerpApi 키 가져오기 (.env 파일에 저장된 값)
-    serpapi_key = os.getenv("SERPAPI_API_KEY")
-    if not serpapi_key:
-        print(f"Error: SERPAPI_API_KEY is not set.")
-        return {**stock, 'news': [{"title": "API Key Error", "url": "#", "source": "System", "snippet": "SERPAPI_API_KEY가 설정되지 않았습니다."}]}
-        
-    # 뉴스 검색어 설정 (종목명, 티커 등에 '공시', '실적' 등 키워드 조합 가능)
-    query = f"{name} {symbol} 주식 뉴스"
-    
-    # SerpApi 요청 URL 및 파라미터 설정
-    # engine=google: 구글 검색 엔진 사용
-    # tbm=nws: 구글 '뉴스' 탭 검색을 의미함
-    # num=4: 가져올 뉴스 기사 수 (최대 4개)
-    params = {
-        "engine": "google",
-        "q": query,
-        "tbm": "nws",
-        "api_key": serpapi_key,
-        "num": "4"
-    }
-    
-    try:
-        print(f"  [2단계] {name}({symbol}) 뉴스 수집 중 (SerpApi 사용)...")
-        # SerpApi로 HTTP GET 요청 보내기
-        async with session.get("https://serpapi.com/search", params=params) as response:
-            data = await response.json()
-            
-            articles = []
-            # 결과 중 'news_results' 리스트가 있는지 확인
-            if 'news_results' in data:
-                # 최대 4개의 뉴스 데이터를 가져와서 리스트에 추가
-                for item in data['news_results'][:4]:
-                    articles.append({
-                        'title': item.get('title', '제목 없음'),
-                        'url': item.get('link', '#'),
-                        'source': item.get('source', 'Google News'),
-                        'timestamp': item.get('date', datetime.now(KST).isoformat()),
-                        'snippet': item.get('snippet', ''),          # 기사 요약
-                        'thumbnail_url': item.get('thumbnail', '')   # 썸네일 이미지 주소
-                    })
-                    
-            status = "success" if articles else "no_news_found"
-            print(f"  [2단계] {name}({symbol}) 뉴스 기사 수집 완료. (조회 수: {len(articles)})")
-            
-            # 수집된 기사가 없으면 기본 안내 메시지 추가
-            if not articles:
-                articles = [{
-                    "title": "** 관련 기사 및 공시 없음", 
-                    "url": "#", 
-                    "source": "N/A", 
-                    "snippet": "", 
-                    "thumbnail_url": ""
-                }]
-                
-            return {
-                **stock,
-                'news': articles,
-                'news_status': status,
-                'period': 'SerpApi'
-            }
-    except Exception as e:
-        # 에러 발생 시 처리 (예: 인터넷 연결 문제, API 오류 등)
-        print(f"Error scraping news for {symbol}: {e}")
-        return {**stock, 'news': [{"title": "뉴스 수집 중 오류 발생", "url": "#", "source": "Error", "snippet": str(e), "thumbnail_url": ""}]}
 
 async def get_valid_gemini_model(api_key):
     url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
@@ -108,7 +35,8 @@ async def generate_analysis(stock_data):
     
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
-        raise Exception("GOOGLE_API_KEY is not set.")
+        print("GOOGLE_API_KEY is not set.")
+        sys.exit(1)
         
     model_name = await get_valid_gemini_model(api_key)
     print(f"  * Auto-Discovery 통과: [{model_name}] 모델을 사용하여 분석을 시도합니다.")
@@ -200,55 +128,28 @@ async def generate_analysis(stock_data):
                 return result
     except Exception as e:
         print(f"AI Analysis failed: {e}")
-        # raise here so main can catch it and return code 1
-        raise e
+        sys.exit(1)
 
 async def main():
-    if not os.path.exists('.tmp/market_data.json'):
-        print("Market data not found. Run get_stock_data.py first.")
-        return
+    if not os.path.exists('.tmp/news_data.json'):
+        print("News data not found. Run get_news.py first.")
+        sys.exit(1)
 
-    with open('.tmp/market_data.json', 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-    print("Scraping news for tickers...")
-    async with aiohttp.ClientSession() as session:
-        # Fetch news for all stocks concurrently
-        tasks = []
-        for stock in data['kr'] + data['us']:
-            tasks.append(fetch_news_for_stock(session, stock))
-        
-        results = await asyncio.gather(*tasks)
-        
-    kr_news = results[:len(data['kr'])]
-    us_news = results[len(data['kr']):]
-    
-    analysis_input = {
-        'timestamp': data['timestamp'],
-        'kr': kr_news,
-        'us': us_news
-    }
-    
-    # Save the raw news data before analysis for DB syncing
-    with open('.tmp/news_data.json', 'w', encoding='utf-8') as f:
-        json.dump(analysis_input, f, ensure_ascii=False, indent=2)
-    print("Raw news data saved to .tmp/news_data.json")
+    with open('.tmp/news_data.json', 'r', encoding='utf-8') as f:
+        news_data = json.load(f)
 
     print("Generating AI Analysis report...")
-    final_report = await generate_analysis(analysis_input)
+    final_report = await generate_analysis(news_data)
     print("[3단계] AI 분석 리포트 생성 종료")
+    
     with open('.tmp/report.json', 'w', encoding='utf-8') as f:
         json.dump(final_report, f, ensure_ascii=False, indent=2)
     
     print("Report analysis saved to .tmp/report.json")
 
-async def main_wrapped():
-    try:
-        await main()
-    except Exception as e:
-        print(f"Fatal Error: {e}")
-        sys.exit(1)
-
 if __name__ == "__main__":
-    import sys
-    asyncio.run(main_wrapped())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Fatal Error during AI analysis: {e}")
+        sys.exit(1)
