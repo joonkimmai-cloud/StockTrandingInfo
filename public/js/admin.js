@@ -154,7 +154,6 @@ window.handleRunBatch = async function() {
     closeBtn.style.display = 'inline-block';
 };
 
-// 팝업창에서 진짜 녹색 "실행" 버튼을 눌렀을 때 백엔드에 API 요청을 보냄
 window.executeBatchAPI = async function() {
     const logWin = document.getElementById('modal-log-window');
     const statusText = document.getElementById('modal-status-text');
@@ -169,28 +168,86 @@ window.executeBatchAPI = async function() {
     statusText.innerText = '작업을 진행하고 있습니다...';
     statusText.style.color = 'var(--primary-blue)'; // 파란색 표시
 
-    try {
-        // 백엔드 파이썬(Python) 서버에 POST(실행) 신호 보내기
-        const response = await fetch('http://localhost:5000/run-batch', { method: 'POST' });
-        const result = await response.json();
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+    if (isLocal) {
+        // [로컬 테스트 환경]: 파이썬 Flask 서버로 직접 통신
+        try {
+            const response = await fetch('http://localhost:5000/run-batch', { method: 'POST' });
+            const result = await response.json();
+            
+            logWin.innerHTML += '> ' + result.message + '\n';
+            // 벌써 상태 확인 모드로 돌입 (주기적으로 서버에 물어보기 시작!)
+            window.pollBatchStatus();
+        } catch (err) {
+            logWin.innerHTML += `> ERROR: API 서버가 실행 중이지 않습니다. (웹 페이지가 아닌 파이썬 배치 서버가 켜져있는지 확인하세요.)\n`;
+            statusText.innerText = '실행 실패 (서버 연결 불가)';
+            statusText.style.color = 'var(--error-color)';
+            
+            okBtn.style.display = 'block';
+            okBtn.innerText = '확인 후 닫기';
+            closeBtn.style.display = 'block';
+        }
+    } else {
+        // [서버 환경 / Cloudflare Pages]: GitHub Actions API 원격 호출로 배치 실행
+        const githubToken = prompt("GitHub Actions 원격 실행을 위해 GitHub 토큰(PAT)을 입력해주세요.\n(권한: repo 또는 workflow 지원)");
         
-        logWin.innerHTML += '> ' + result.message + '\n';
-        // 바로 상태 확인 모드로 돌입 (주기적으로 서버에 물어보기 시작!)
-        window.pollBatchStatus();
-    } catch (err) {
-        logWin.innerHTML += `> ERROR: API 서버가 실행 중이지 않습니다. (웹 페이지가 아닌 파이썬 배치 서버가 켜져있는지 확인하세요.)\n`;
-        statusText.innerText = '실행 실패 (서버 연결 불가)';
-        statusText.style.color = 'var(--error-color)';
-        
-        // 닫기 버튼 열어주기
+        if (!githubToken) {
+            logWin.innerHTML += '> 토큰 입력이 취소되어 배치를 시작하지 못했습니다.\n';
+            statusText.innerText = '실행 취소됨';
+            statusText.style.color = 'var(--error-color)';
+            okBtn.style.display = 'block';
+            okBtn.innerText = '닫기';
+            closeBtn.style.display = 'block';
+            return;
+        }
+
+        try {
+            // 실행할 대상: joonkimmai-cloud/StockTrandingInfo 의 daily_report.yml
+            const repoOwner = "joonkimmai-cloud";
+            const repoName = "StockTrandingInfo";
+            const workflowId = "daily_report.yml"; 
+            
+            const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/actions/workflows/${workflowId}/dispatches`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${githubToken.trim()}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ref: 'main' }) // 제일 최신 코드로 실행
+            });
+
+            if (response.ok || response.status === 204) {
+                logWin.innerHTML += '> ✅ GitHub Actions 클라우드 서버에 실행 명령을 성공적으로 전달했습니다!\n';
+                logWin.innerHTML += '> (참고) 클라우드 환경에서는 이곳에 실시간 세부 로그가 보이지 않습니다.\n';
+                logWin.innerHTML += '> 약 2~3분 뒤 이 창을 닫고, 새로고침하여 [Execution Logs]에서 최종 결과를 확인해주세요.\n';
+                
+                statusText.innerText = '실행 요청 성공 (클라우드에서 가동 중)';
+                statusText.style.color = '#238636'; 
+            } else {
+                const errorData = await response.json();
+                logWin.innerHTML += `> ❌ GitHub 서버 연동 실패 (Code ${response.status}):\n${errorData.message || '권한 유효성을 확인해주세요'}\n`;
+                statusText.innerText = '실행 실패 (권한 에러)';
+                statusText.style.color = 'var(--error-color)';
+            }
+        } catch (err) {
+            logWin.innerHTML += `> ❌ 네트워크 오류: GitHub 시스템과 연결되지 않았습니다.\n`;
+            statusText.innerText = '실행 실패 (네트워크 연결 끊김)';
+            statusText.style.color = 'var(--error-color)';
+        }
+
         okBtn.style.display = 'block';
-        okBtn.innerText = '확인 후 닫기';
+        okBtn.innerText = '알겠습니다 (창 닫기)';
         closeBtn.style.display = 'block';
     }
 };
 
 // 진행되는 동안(status.is_running === true) 파이썬 서버한테 로그를 계속해서 물어보는 재귀 함수
 window.pollBatchStatus = async function() {
+    // 서버(Cloudflare) 환경에서는 클라우드가 처리하므로 로컬 폴링 방지
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
+
     const logWin = document.getElementById('modal-log-window');
     const statusText = document.getElementById('modal-status-text');
     const okBtn = document.getElementById('modal-ok-btn');
@@ -242,6 +299,9 @@ window.closeModal = function() {
 
 // (추가 기능) 팝업을 띄우지 않아도 백그라운드에 배치가 자동으로 뛰고 있는지 확인하는 함수.
 window.checkBatchStatus = function() {
+    // 서버(Cloudflare) 환경에서는 로컬 폴링 방지
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
+    
     fetch('http://localhost:5000/batch-status')
         .then(res => res.json())
         .then(status => {
