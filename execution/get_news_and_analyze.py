@@ -3,16 +3,12 @@ import json
 import asyncio
 import aiohttp
 from bs4 import BeautifulSoup
-from google import genai
 from dotenv import load_dotenv
 from datetime import datetime
 from zoneinfo import ZoneInfo
 KST = ZoneInfo('Asia/Seoul')
 
 load_dotenv()
-
-# Gemini Setup
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
 async def fetch_news_for_stock(session, stock):
     # 주식 정보 추출
@@ -84,8 +80,39 @@ async def fetch_news_for_stock(session, stock):
         print(f"Error scraping news for {symbol}: {e}")
         return {**stock, 'news': [{"title": "뉴스 수집 중 오류 발생", "url": "#", "source": "Error", "snippet": str(e), "thumbnail_url": ""}]}
 
+async def get_valid_gemini_model(api_key):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    models = data.get('models', [])
+                    
+                    # 1. 'flash' 모델 우선 검색
+                    for m in models:
+                        if 'flash' in m.get('name', '').lower() and 'generateContent' in m.get('supportedGenerationMethods', []):
+                            return m['name']
+                            
+                    # 2. 'pro' 모델 차선책
+                    for m in models:
+                        if 'pro' in m.get('name', '').lower() and 'generateContent' in m.get('supportedGenerationMethods', []):
+                            return m['name']
+    except Exception as e:
+        print(f"Model auto-discovery failed: {e}")
+        
+    return "models/gemini-1.5-flash" # 최후의 하드코딩 Fallback
+
 async def generate_analysis(stock_data):
     print("[3단계] AI 분석 리포트 생성 시작...")
+    
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise Exception("GOOGLE_API_KEY is not set.")
+        
+    model_name = await get_valid_gemini_model(api_key)
+    print(f"  * Auto-Discovery 통과: [{model_name}] 모델을 사용하여 분석을 시도합니다.")
+
     prompt = f"""
     당신은 세계적인 시니어 투자 전략가이자 경제학자입니다. 
     최근 전날 대비 거래량이 급증한(Relative Volume) 한국 및 미국 주식 정보를 바탕으로 리포트를 작성해 주세요.
@@ -113,20 +140,41 @@ async def generate_analysis(stock_data):
     }}
     """
     
+    url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={api_key}"
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }],
+        "generationConfig": {
+            "temperature": 0.7
+        }
+    }
+    
     try:
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt
-        )
-        text = response.text.strip()
-        if text.startswith('```json'):
-            text = text[7:-3].strip()
-        elif text.startswith('```'):
-            text = text[3:-3].strip()
-        
-        result = json.loads(text)
-        result['status'] = 'success'
-        return result
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=payload) as response:
+                if response.status != 200:
+                    error_text = await response.text()
+                    raise Exception(f"API Error {response.status}: {error_text}")
+                    
+                data = await response.json()
+                
+                candidates = data.get('candidates', [])
+                if not candidates:
+                    raise Exception(f"No candidates returned: {data}")
+                    
+                text = candidates[0].get('content', {}).get('parts', [{}])[0].get('text', '')
+                text = text.strip()
+                
+                if text.startswith('```json'):
+                    text = text[7:-3].strip()
+                elif text.startswith('```'):
+                    text = text[3:-3].strip()
+                
+                result = json.loads(text)
+                result['status'] = 'success'
+                return result
     except Exception as e:
         print(f"AI Analysis failed: {e}")
         # raise here so main can catch it and return code 1
