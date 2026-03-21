@@ -146,25 +146,36 @@ async function subscribe() {
             return;
         }
 
-        // ② 6자리 코드 생성
+        // ② 팝업을 먼저 띄움 (이메일 발송 성공/실패와 무관하게 표시)
+        showOverlay(email);
+        bindVerifyButtons(email);
+        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 인증 코드를 발송 중입니다...</span>';
+        setErr('코드 발송 중... 잠시만 기다려 주세요.');
+
+        // ③ 6자리 코드 생성
         const code = String(Math.floor(100000 + Math.random() * 900000));
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-        // ③ Supabase에 코드 저장 (기존 것 삭제 후 새로 삽입)
+        // ④ Supabase에 코드 저장
         await sbDelete('email_verifications', `email=eq.${encodeURIComponent(email)}`);
         const saveResp = await sbInsert('email_verifications', { email, code, expires_at: expiresAt, verified: false });
         if (!saveResp.ok && saveResp.status !== 201) {
-            throw new Error(`코드 저장 실패 (${saveResp.status})`);
+            const errBody = await saveResp.text().catch(() => '');
+            console.error('DB save failed:', saveResp.status, errBody);
+            setErr(`⚠️ DB 저장 오류(${saveResp.status}): email_verifications 테이블이 Supabase에 생성되어 있는지 확인해 주세요.`);
+            return;
         }
 
-        // ④ 이메일 발송
-        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 인증 코드 발송 중...</span>';
-        await sendCodeEmail(email, code);
-
-        // ⑤ 팝업 표시
-        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 이메일을 확인하여 인증 코드를 입력해 주세요.</span>';
-        showOverlay(email);
-        bindVerifyButtons(email);
+        // ⑤ 이메일 발송
+        try {
+            await sendCodeEmail(email, code);
+            setErr('');
+            messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 이메일을 확인하여 코드를 입력해 주세요.</span>';
+        } catch (emailErr) {
+            console.error('Email send failed:', emailErr);
+            setErr(`⚠️ 이메일 발송 실패: ${emailErr.message || emailErr}\n코드를 직접 콘솔에서 확인하거나 재발송을 눌러주세요.`);
+            // 이메일 발송 실패해도 팝업은 유지 (재발송 버튼으로 재시도 가능)
+        }
 
     } catch (err) {
         console.error('subscribe error:', err);
@@ -173,6 +184,7 @@ async function subscribe() {
         btn.innerText = '무료 리포트 구독하기';
         btn.disabled = false;
     }
+
 }
 
 // ─────────────────────────────────────────────────────────────
