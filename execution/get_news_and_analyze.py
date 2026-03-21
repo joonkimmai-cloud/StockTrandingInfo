@@ -147,7 +147,8 @@ async def generate_analysis(stock_data):
             "parts": [{"text": prompt}]
         }],
         "generationConfig": {
-            "temperature": 0.7
+            "temperature": 0.7,
+            "responseMimeType": "application/json"
         }
     }
     
@@ -164,15 +165,37 @@ async def generate_analysis(stock_data):
                 if not candidates:
                     raise Exception(f"No candidates returned: {data}")
                     
-                text = candidates[0].get('content', {}).get('parts', [{}])[0].get('text', '')
-                text = text.strip()
+                content = candidates[0].get('content')
+                if not content:
+                    finish_reason = candidates[0].get('finishReason', 'Unknown')
+                    raise Exception(f"Model blocked or empty content. Finish Reason: {finish_reason}, Data: {data}")
+                    
+                parts = content.get('parts', [])
+                if not parts:
+                    raise Exception(f"Model returned no text parts. Data: {data}")
+                    
+                text = parts[0].get('text', '').strip()
                 
-                if text.startswith('```json'):
-                    text = text[7:-3].strip()
-                elif text.startswith('```'):
-                    text = text[3:-3].strip()
+                # 안전하게 JSON 블록(```json ... ```)만 추출하기 (머리말/꼬리말 무시)
+                import re
+                match = re.search(r'```(?:json)?\s*(.*?)\s*```', text, re.DOTALL)
+                if match:
+                    text = match.group(1).strip()
+                else:
+                    # 혹시 ```가 아예 없이 { 로 시작할 수도 있으니 첫 번째 '{' 와 마지막 '}' 사이만 남기기
+                    start_idx = text.find('{')
+                    end_idx = text.rfind('}')
+                    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                        text = text[start_idx:end_idx+1]
                 
-                result = json.loads(text)
+                try:
+                    result = json.loads(text)
+                except Exception as je:
+                    print(f"--- 🚨 JSON Parsing Failed ---")
+                    print(f"Raw Model Output (first 1000 chars):\n{text[:1000]}")
+                    print(f"------------------------------")
+                    raise Exception(f"Failed to parse model output as JSON. Error: {je}")
+                
                 result['status'] = 'success'
                 return result
     except Exception as e:
