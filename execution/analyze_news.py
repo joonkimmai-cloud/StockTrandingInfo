@@ -3,7 +3,11 @@ import sys
 import json
 import asyncio
 import aiohttp
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+
+KST = ZoneInfo('Asia/Seoul')
 
 load_dotenv()
 
@@ -127,10 +131,65 @@ async def generate_analysis(stock_data):
                 result['status'] = 'success'
                 return result
     except Exception as e:
-        print(f"AI Analysis failed: {e}")
-        sys.exit(1)
+        raise Exception(f"AI Analysis failed: {e}")
+
+async def check_existing_analysis():
+    # 오늘 자 분석 결과가 이미 DB에 있는지 확인합니다.
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+    if not supabase_url or not supabase_key: return None
+    
+    headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
+    today = datetime.now(KST).strftime('%Y-%m-%d')
+    url = f"{supabase_url}/rest/v1/market_reports?report_date=eq.{today}&select=*"
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if len(data) > 0:
+                        report_id = data[0]['id']
+                        # 리포트가 발견되면, 연결된 종목 분석도 가져옴
+                        sa_url = f"{supabase_url}/rest/v1/stock_analysis?report_id=eq.{report_id}&select=*,companies(name)"
+                        async with session.get(sa_url, headers=headers) as sa_resp:
+                            if sa_resp.status == 200:
+                                sa_data = await sa_resp.json()
+                                # 재구성하여 리턴
+                                result = {
+                                    "status": "success",
+                                    "is_cached": True, # 저장 스크립트에서 중복 저장을 방지하기 위한 플래그
+                                    "market_summary": data[0].get('market_summary', ''),
+                                    "prediction": data[0].get('prediction', ''),
+                                    "kr_analysis": [],
+                                    "us_analysis": []
+                                }
+                                for item in sa_data:
+                                    # 원본 데이터를 정확히 복원하긴 어렵지만, 이메일용으로 표시될 내용은 복원 가능
+                                    comp_name = item.get('companies', {}).get('name', '알수없음')
+                                    analysis_obj = {
+                                        "name": comp_name,
+                                        "analysis": item.get('analysis_content', ''),
+                                        "sentiment": item.get('sentiment', 'Neutral')
+                                    }
+                                    # 여기서는 모두 kr_analysis 에 넣음 (구분이 모호하더라도 이메일 발송엔 문제 없음)
+                                    result["kr_analysis"].append(analysis_obj)
+                                    
+                                return result
+    except Exception as e:
+        print(f"Failed to check existing analysis: {e}")
+    return None
 
 async def main():
+    # 패스 로직: DB에 이미 오늘자 분석이 완성되어 있으면 API 호출 전면 취소
+    existing_report = await check_existing_analysis()
+    if existing_report and existing_report.get('is_cached'):
+        print("[3단계] 💡 DB에 오늘 자 AI 분석 데이터가 이미 존재합니다. (Gemini API 호출을 생략합니다)")
+        with open('.tmp/report.json', 'w', encoding='utf-8') as f:
+            json.dump(existing_report, f, ensure_ascii=False, indent=2)
+        print("Report analysis (cached from DB) saved to .tmp/report.json")
+        return
+
     if not os.path.exists('.tmp/news_data.json'):
         print("News data not found. Run get_news.py first.")
         sys.exit(1)
@@ -139,8 +198,19 @@ async def main():
         news_data = json.load(f)
 
     print("Generating AI Analysis report...")
-    final_report = await generate_analysis(news_data)
-    print("[3단계] AI 분석 리포트 생성 종료")
+    try:
+        final_report = await generate_analysis(news_data)
+        print("[3단계] AI 분석 리포트 생성 종료")
+    except Exception as e:
+        print(f"===========================================================")
+        print(f"🚨 AI API 통신 장애 발생! 기본 수집 데이터로 폴백(Fallback) 진행")
+        print(f"에러내역: {e}")
+        print(f"===========================================================")
+        final_report = {
+            "status": "error",
+            "error_message": str(e),
+            "raw_data": news_data
+        }
     
     with open('.tmp/report.json', 'w', encoding='utf-8') as f:
         json.dump(final_report, f, ensure_ascii=False, indent=2)
@@ -148,8 +218,4 @@ async def main():
     print("Report analysis saved to .tmp/report.json")
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except Exception as e:
-        print(f"Fatal Error during AI analysis: {e}")
-        sys.exit(1)
+    asyncio.run(main())

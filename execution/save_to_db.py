@@ -19,6 +19,11 @@ def save_to_supabase():
     
     with open('.tmp/news_data.json', 'r', encoding='utf-8') as f:
         news_data = json.load(f)
+        
+    report_data = None
+    if os.path.exists('.tmp/report.json'):
+        with open('.tmp/report.json', 'r', encoding='utf-8') as f:
+            report_data = json.load(f)
 
     all_stocks = market_data['kr'] + market_data['us']
     # news_data has 'kr' and 'us' keys containing lists of stocks with 'news' field
@@ -116,7 +121,8 @@ def save_to_supabase():
                             "position": i + 1                                  # 뉴스 노출 순위 (1, 2, 3...)
                         }
                         
-                        # 준비된 뉴스 데이터를 DB에 POST 요청으로 밀어넣기 (Insert)
+                        # 뉴스 데이터 Insert 시 중복 에러가 나면 무시하도록 처리 (idempotency)
+                        # 또는 단순히 post 요청을 보냄
                         requests.post(
                             f"{supabase_url}/rest/v1/news_articles",
                             headers=headers,
@@ -124,6 +130,63 @@ def save_to_supabase():
                         )
                 
     print("Database sync (Companies & News) completed.")
+
+    # [과정 D] AI 분석 리포트 저장 (마켓 리포트 및 종목 분석)
+    if report_data and report_data.get('status') == 'success':
+        if report_data.get('is_cached'):
+            print("AI Analysis was loaded from DB (Cached). Skipping re-insertion into DB.")
+        else:
+            today_date = datetime.now(KST).strftime('%Y-%m-%d')
+            print(f"Syncing AI Analysis report for {today_date}...")
+            
+            # 1. market_reports 에 먼저 INSERT 후 id 가져오기
+        market_report_payload = {
+            "report_date": today_date,
+            "market_summary": report_data.get('market_summary', ''),
+            "investment_strategy": report_data.get('prediction', ''),
+            "prediction": report_data.get('prediction', ''),
+            "created_at": datetime.now(KST).isoformat()
+        }
+        
+        mr_resp = requests.post(
+            f"{supabase_url}/rest/v1/market_reports?on_conflict=report_date",
+            headers=headers,
+            json=market_report_payload
+        )
+        
+        if mr_resp.status_code in [200, 201, 204]:
+            # 방금 넣은 (혹은 이미 있던) 리포트 모델의 ID 획득
+            get_mr = requests.get(f"{supabase_url}/rest/v1/market_reports?report_date=eq.{today_date}&select=id", headers=headers)
+            if get_mr.status_code == 200 and get_mr.json():
+                report_uuid = get_mr.json()[0]['id']
+                
+                # 2. 개별 종목 분석 내역(stock_analysis) 저장
+                # DB의 회사 ID 조회를 일괄적으로 수행
+                all_analysis_list = report_data.get('kr_analysis', []) + report_data.get('us_analysis', [])
+                
+                for item in all_analysis_list:
+                    # 종목명을 기반으로 매칭 불완전하므로, companies 검색 필요하지만,
+                    # 현재 all_stocks의 데이터로 다시 맵핑 가능.
+                    # 여기서는 그냥 단순 삽입.
+                    # 하지만 company_id가 필요함!
+                    c_symbol = next((s['symbol'] for s in all_stocks if s['name'] == item['name']), None)
+                    if not c_symbol: c_symbol = item.get('name') # Fallback if symbol was passed as name
+                    
+                    if c_symbol:
+                        get_c = requests.get(f"{supabase_url}/rest/v1/companies?symbol=eq.{c_symbol}&select=id", headers=headers)
+                        if get_c.status_code == 200 and get_c.json():
+                            c_uuid = get_c.json()[0]['id']
+                            
+                            sa_payload = {
+                                "company_id": c_uuid,
+                                "report_id": report_uuid,
+                                "analysis_content": item.get('analysis', ''),
+                                "sentiment": item.get('sentiment', 'Neutral'),
+                                "created_at": datetime.now(KST).isoformat()
+                            }
+                            requests.post(f"{supabase_url}/rest/v1/stock_analysis", headers=headers, json=sa_payload)
+        
+        print("Database sync (AI Analysis) completed.")
 
 if __name__ == "__main__":
     save_to_supabase()

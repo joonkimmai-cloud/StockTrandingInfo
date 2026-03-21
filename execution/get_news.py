@@ -3,20 +3,70 @@ import sys
 import json
 import asyncio
 import aiohttp
-from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 from datetime import datetime
+from aiohttp import BasicAuth
 from zoneinfo import ZoneInfo
+
 KST = ZoneInfo('Asia/Seoul')
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
-async def fetch_news_for_stock(session, stock):
+async def check_existing_news(session, symbol, all_db_companies):
+    today = datetime.now(KST).strftime('%Y-%m-%d')
+    company = next((c for c in all_db_companies if c['symbol'] == symbol), None)
+    if not company: return None
+    
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+    if not supabase_url or not supabase_key: return None
+    
+    headers = {
+        "apikey": supabase_key,
+        "Authorization": f"Bearer {supabase_key}"
+    }
+    
+    # 해당 회사의 오늘자 뉴스가 1개라도 있는지 확인
+    url = f"{supabase_url}/rest/v1/news_articles?company_id=eq.{company['id']}&created_at=gte.{today}T00:00:00%2B09:00"
+    try:
+        async with session.get(url, headers=headers) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                if len(data) > 0:
+                    print(f"  [2단계] {symbol}: 💡 DB에 오늘자 뉴스가 이미 존재합니다. (API 호출 패스)")
+                    # DB에 있는 뉴스 데이터를 그대로 반환 모양에 맞춰 재구성
+                    articles = []
+                    for item in data[:4]:
+                        articles.append({
+                            'title': item.get('title', ''),
+                            'url': item.get('source_url', '#'),
+                            'source': item.get('source_name', 'DB'),
+                            'snippet': item.get('snippet', ''),
+                            'thumbnail_url': item.get('thumbnail_url', '')
+                        })
+                    return {"is_cached": True, "articles": articles}
+    except Exception as e:
+        print(f"Skipping DB check error for {symbol}: {e}")
+    
+    return None
+
+async def fetch_news_for_stock(session, stock, all_db_companies):
     # 주식 정보 추출
     symbol = stock.get('symbol', 'UNKNOWN')
     name = stock.get('name', 'UNKNOWN')
-    
-    # SerpApi 키 가져오기 (.env 파일에 저장된 값)
+    # DB 검사 (오늘 가져온 뉴스가 있으면 패스)
+    existing = await check_existing_news(session, symbol, all_db_companies)
+    if existing and existing.get("is_cached"):
+        articles = existing["articles"]
+        return {
+            **stock,
+            'news': articles,
+            'news_status': 'success' if articles else 'no_news_found',
+            'period': 'DB Cached'
+        }
+
+    # 없으면 SerpApi 키 가져오기 (.env 파일에 저장된 값)
     serpapi_key = os.getenv("SERPAPI_API_KEY")
     if not serpapi_key:
         print(f"Error: SERPAPI_API_KEY is not set.")
@@ -83,12 +133,25 @@ async def main():
 
     with open('.tmp/market_data.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
+    # DB에서 회사 목록을 미리 전체 가져옵니다 (Company ID 매핑용)
+    all_db_companies = []
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+    if supabase_url and supabase_key:
+        headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
+        try:
+            async with aiohttp.ClientSession() as fetch_session:
+                async with fetch_session.get(f"{supabase_url}/rest/v1/companies?select=id,symbol", headers=headers) as resp:
+                    if resp.status == 200:
+                        all_db_companies = await resp.json()
+        except Exception:
+            pass
 
     print("Scraping news for tickers...")
     async with aiohttp.ClientSession() as session:
         tasks = []
         for stock in data.get('kr', []) + data.get('us', []):
-            tasks.append(fetch_news_for_stock(session, stock))
+            tasks.append(fetch_news_for_stock(session, stock, all_db_companies))
         
         results = await asyncio.gather(*tasks)
         

@@ -26,74 +26,34 @@ def get_subscribers():
 
 
 def build_error_html_template(data):
-    raw = data.get('raw_data', {})
-    error_msg = data.get('error_message', '알 수 없는 오류')
-    
-    def format_stocks(stocks):
-        html = ""
-        for s in stocks:
-            news_list = "".join([f"<li>{n}</li>" for n in s.get('news', [])])
-            html += f"""
-            <div class="stock-card">
-                <div class="stock-name">{s['name']} ({s['symbol']})</div>
-                <div style="font-size: 0.9em; margin-top: 5px;">
-                    <strong>수집된 기사:</strong>
-                    <ul>{news_list}</ul>
-                </div>
-            </div>
-            """
-        return html
-
-    kr_html = format_stocks(raw.get('kr', []))
-    us_html = format_stocks(raw.get('us', []))
-
-    template = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <style>
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #fce8e6; color: #1c1e21; margin: 0; padding: 0; }}
-        .container {{ max-width: 650px; margin: 30px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }}
-        .header {{ background: #d93025; color: #ffffff; padding: 30px 20px; text-align: center; }}
-        .content {{ padding: 30px; line-height: 1.6; }}
-        .section-title {{ font-size: 1.4em; border-bottom: 3px solid #d93025; padding-bottom: 8px; margin-top: 40px; color: #d93025; font-weight: 700; }}
-        .error-box {{ background: #fdf2f2; border: 1px solid #f8b4b4; padding: 20px; border-radius: 8px; margin-bottom: 25px; color: #9b1c1c; }}
-        .stock-card {{ border: 1px solid #e1e4e8; border-radius: 10px; padding: 15px; margin-bottom: 15px; background: #fff; }}
-        .stock-name {{ font-weight: bold; font-size: 1.1em; color: #1c1e21; }}
-        .footer {{ text-align: center; font-size: 0.85em; color: #65676b; padding: 30px; background: #f0f2f5; }}
-    </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>AI 분석 일시 중단 안내</h1>
-                <p>시스템 오류로 분석 리포트 생성이 제한되었습니다.</p>
-            </div>
-            <div class="content">
-                <div class="error-box">
-                    <strong>분석 실패 사유:</strong><br>
-                    {error_msg}
-                </div>
-                <p>AI 분석 및 요약은 완료하지 못했으나, 수집된 주요 종목과 관련 기사 목록을 전달드립니다.</p>
-                
-                <h2 class="section-title">KOREA - 데이터 수집 결과</h2>
-                {kr_html}
-                
-                <h2 class="section-title">USA - 데이터 수집 결과</h2>
-                {us_html}
-            </div>
-            <div class="footer">
-                <p>이 메일은 시스템에 의해 자동으로 발송되었습니다.</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-    return template
+    # 이제 에러 템플릿도 별도로 사용하지 않지만 하위 호환성을 위해 함수만 남겨둠
+    return ""
 
 def build_html_template(data):
     if data.get('status') == 'error':
-        return build_error_html_template(data)
+        raw = data.get('raw_data', {})
+        err_msg = data.get('error_message', '알 수 없는 오류')
+        
+        data['market_summary'] = f"⚠️ AI 분석 지연 (API 응답 실패). AI가 현재 일시적인 오류를 겪고 있어 로우 데이터를 그대로 전송합니다.<br>사유: {err_msg}"
+        data['prediction'] = "가장 많이 검색된 주식들의 헤드라인을 직접 참고하여 주시기 바랍니다."
+        
+        if 'kr_analysis' not in data: data['kr_analysis'] = []
+        for stock in raw.get('kr', []):
+            news_text = "<br>".join([f"• <a href='{n.get('url', '#')}' style='color:#004e92;'>{n.get('title', '')}</a>" for n in stock.get('news', [])])
+            data['kr_analysis'].append({
+                "name": f"{stock.get('name')} ({stock.get('symbol')})",
+                "analysis": f"<b>[수집된 최신 기사 원문 제목]</b><br>{news_text}",
+                "sentiment": "Neutral"
+            })
+            
+        if 'us_analysis' not in data: data['us_analysis'] = []
+        for stock in raw.get('us', []):
+            news_text = "<br>".join([f"• <a href='{n.get('url', '#')}' style='color:#004e92;'>{n.get('title', '')}</a>" for n in stock.get('news', [])])
+            data['us_analysis'].append({
+                "name": f"{stock.get('name')} ({stock.get('symbol')})",
+                "analysis": f"<b>[수집된 최신 기사 원문 제목]</b><br>{news_text}",
+                "sentiment": "Neutral"
+            })
 
     def translate_sentiment(sentiment_str):
         if not sentiment_str: return "중립 (Neutral)"
