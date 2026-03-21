@@ -168,9 +168,10 @@ window.executeBatchAPI = async function() {
     statusText.innerText = '작업을 진행하고 있습니다...';
     statusText.style.color = 'var(--primary-blue)'; // 파란색 표시
 
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // 사용자가 직접 로컬인지 클라우드인지 명확하게 선택하도록 합니다. (주소 자동인식 오작동 방지)
+    const runOnCloud = confirm("배치를 어디에서 실행하시겠습니까?\n\n[확인] 원격 클라우드 서버 (GitHub Actions)에서 실행\n[취소] 내 컴퓨터 (Localhost Flask)에서 개발/테스트 실행");
 
-    if (isLocal) {
+    if (!runOnCloud) {
         // [로컬 테스트 환경]: 파이썬 Flask 서버로 직접 통신
         try {
             const response = await fetch('http://localhost:5000/run-batch', { method: 'POST' });
