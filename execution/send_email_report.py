@@ -95,12 +95,23 @@ def build_html_template(data):
     if data.get('status') == 'error':
         return build_error_html_template(data)
 
+    def translate_sentiment(sentiment_str):
+        if not sentiment_str: return "중립 (Neutral)"
+        s = str(sentiment_str).upper()
+        if 'BULL' in s or 'BUY' in s:
+            return "🔥 상승 우위"
+        elif 'BEAR' in s or 'SELL' in s:
+            return "❄️ 하락 우위"
+        return f"⚖️ 중립 ({sentiment_str})"
+
     kr_html = ""
     for stock in data.get('kr_analysis', []):
-        sentiment_class = "bullish" if "Bull" in stock['sentiment'] else "bearish"
+        s_upper = str(stock.get('sentiment', '')).upper()
+        sentiment_class = "bullish" if "BULL" in s_upper or "BUY" in s_upper else "bearish"
+        display_sentiment = translate_sentiment(stock.get('sentiment'))
         kr_html += f"""
         <div class="stock-card">
-            <span class="sentiment {sentiment_class}">{stock['sentiment']}</span>
+            <span class="sentiment {sentiment_class}">{display_sentiment}</span>
             <div class="stock-name">{stock['name']}</div>
             <div style="font-size: 0.9em; margin-top: 5px;">{stock['analysis']}</div>
         </div>
@@ -108,10 +119,12 @@ def build_html_template(data):
         
     us_html = ""
     for stock in data.get('us_analysis', []):
-        sentiment_class = "bullish" if "Bull" in stock['sentiment'] else "bearish"
+        s_upper = str(stock.get('sentiment', '')).upper()
+        sentiment_class = "bullish" if "BULL" in s_upper or "BUY" in s_upper else "bearish"
+        display_sentiment = translate_sentiment(stock.get('sentiment'))
         us_html += f"""
         <div class="stock-card">
-            <span class="sentiment {sentiment_class}">{stock['sentiment']}</span>
+            <span class="sentiment {sentiment_class}">{display_sentiment}</span>
             <div class="stock-name">{stock['name']}</div>
             <div style="font-size: 0.9em; margin-top: 5px;">{stock['analysis']}</div>
         </div>
