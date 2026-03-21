@@ -1,23 +1,26 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- 페이지 탭에 보이는 제목 -->
     <title>Stock Alpha - 관리자 화면(Admin Backoffice)</title>
-    
+
     <!-- 예쁜 폰트 (Pretendard) 원격에서 불러오기 -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-    
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+
     <!-- Supabase (데이터베이스) 통신을 위한 라이브러리. 이 라이브러리가 있어야 서버에서 내 데이터를 가져옵니다. -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
+
     <!-- (중요) 디자인 설정. 긴 기존 style 태그의 코드를 css/admin.css 파일로 쪼개어 연결 -->
     <link rel="stylesheet" href="./css/admin.css">
-    
+
 </head>
+
 <body>
-    
+
     <!-- ==============================================
          영역 1: 좌측 메뉴 (Sidebar DIV)
          관리자가 이동하고 싶은 페이지를 클릭할 수 있는 공간
@@ -31,13 +34,12 @@
             <div class="menu-group-title">Monitoring (모니터링)</div>
             <div class="menu-item active" id="nav-batch-summary">Batch Summary (배치 요약)</div>
             <div class="menu-item" id="nav-execution-logs">Execution Logs (실행 로그)</div>
-            
+
             <!-- 데이터 관리 메뉴 그룹 -->
             <div class="menu-group-title">Data (데이터 관리)</div>
             <div class="menu-item" id="nav-companies">Companies List (관심 기업들)</div>
-            <!-- AI 분석 결과 메뉴 -->
             <div class="menu-item" id="nav-analysis-results">Analysis Results (AI 분석결과)</div>
-            
+
             <!-- 사용자 관리 메뉴 그룹 -->
             <div class="menu-group-title">Users (사용자)</div>
             <div class="menu-item" id="nav-subscriber-list">All Subscribers (모든 구독자)</div>
@@ -49,17 +51,18 @@
          화면 우측 전체 (상단 바 + 내용 영역)를 감싸는 DIV
          ============================================== -->
     <div class="main-wrapper">
-        
+
         <!-- 영역 2: 상단 네비게이터 (Top Bar DIV) -->
         <header class="top-bar">
             <!-- 사용자가 현재 어디에 위치해 있는지 텍스트로 보여주기 -->
             <div class="breadcrumbs">
                 Admin (관리자) > <span id="nav-path">Monitoring</span>
             </div>
-            
+
             <!-- 로그아웃 (나가기) 버튼 -->
             <div>
-                <button id="logout-btn" class="btn-blue" style="background:#f0f0f0; color:#333; border: 1px solid #ddd;">
+                <button id="logout-btn" class="btn-blue"
+                    style="background:#f0f0f0; color:#333; border: 1px solid #ddd;">
                     로그아웃 (Logout)
                 </button>
             </div>
@@ -74,7 +77,7 @@
                      이 사이에 테이블이나 텍스트를 만들어 넣습니다! -->
             </div>
         </main>
-        
+
     </div>
 
     <!-- ==============================================
@@ -88,17 +91,18 @@
             <div class="modal-header">
                 <h2 style="margin:0; font-size:1.25rem;">Batch Execution Status (작업 상태 모니터)</h2>
                 <!-- 팝업창 끄기 X 버튼 -->
-                <button id="close-modal-x" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                <button id="close-modal-x"
+                    style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
             </div>
-            
+
             <!-- 현재 무슨 일이 일어나고 있는지 알려주는 짧은 글 (예: 초기화 중..., 작업 실패!) -->
             <div id="modal-status-text" style="margin-bottom:10px; font-weight:600; color:var(--primary-blue);">
                 Initializing...
             </div>
-            
+
             <!-- 해커/개발자 화면 처럼 까만 창에 실제 진행 결과나 과거 일기가 찍히는 곳 -->
             <div id="modal-log-window" class="log-window"></div>
-            
+
             <!-- 팝업창 하단의 버튼들 -->
             <div class="modal-footer">
                 <!-- 진짜 '실행' 하라고 지시를 내리는 버튼 -->
@@ -117,4 +121,5 @@
     <script type="module" src="./js/admin.js"></script>
 
 </body>
+
 </html>
