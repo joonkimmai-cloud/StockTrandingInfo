@@ -187,16 +187,17 @@ async function subscribe() {
             
         } catch (emailErr) {
             console.error('Email send failed:', emailErr);
-            // 이메일 발송에 실패하면 팝업 안에 에러를 표시하고 재발송을 유도
-            setErr(`⚠️ 이메일 전송에 실패했습니다. (${emailErr})\n다시 시도하거나 스팸함을 확인하세요.`);
-            confirmBtn.disabled = false; 
-            codeInput.disabled = false;
+            hideOverlay();
+            alert(`⚠️ 이메일 전송에 실패했습니다.\n\n다시 구독 버튼을 눌러 시도해 주세요.\n(오류: ${emailErr.message || "알 수 없는 오류"})`);
+            messageEl.innerHTML = `<span class="error">이메일 발송에 실패했습니다.</span>`;
+            return;
         }
 
     } catch (err) {
         console.error('subscribe error:', err);
-        messageEl.innerHTML = `<span class="error">구독 요청 중 오류가 발생했습니다: ${err.message}</span>`;
-        hideOverlay(); // 초기 단계에서 치명적 에러면 팝업 닫기
+        hideOverlay();
+        alert(`⚠️ 과정 중 오류가 발생했습니다.\n\n다시 시도해 주세요.\n(${err.message})`);
+        messageEl.innerHTML = `<span class="error">구독 요청 중 오류가 발생했습니다.</span>`;
     } finally {
         btn.innerText = '무료 리포트 구독하기';
         btn.disabled = false;
