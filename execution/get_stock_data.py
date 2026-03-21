@@ -42,7 +42,8 @@ def get_relative_volume_kr():
                 'pbr': float(row.get('PBR', 0)) if not pd.isna(row.get('PBR')) else None
             })
         except Exception as e:
-            print(f"Error fetching {name}: {e}")
+            # 일시적인 차단 또는 데이터 없음 오류는 무시합니다.
+            pass
             
     return sorted(results, key=lambda x: x['rvol'], reverse=True)[:5]
 
@@ -74,7 +75,8 @@ def get_relative_volume_us():
                 'pbr': None
             })
         except Exception as e:
-            print(f"Error fetching {ticker}: {e}")
+            # 야후 파이낸스 일시적 접속 차단(404) 등의 오류는 가볍게 무시하고 넘어갑니다.
+            pass
             
     return sorted(results, key=lambda x: x['rvol'], reverse=True)[:5]
 
