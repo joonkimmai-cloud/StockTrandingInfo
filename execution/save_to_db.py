@@ -116,13 +116,13 @@ def save_to_supabase():
                         # Supabase 테이블(news_articles) 구조에 맞게 데이터를 포장(mapping)
                         news_payload = {
                             "company_id": company_uuid,
+                            "company_name": stock['name'], # 기업 이름 추가 (관리자 조회용)
                             "title": article['title'],
                             "source_url": article.get('url'),
-                            # 기존 content 대신 SerpApi에서 가져온 섬네일, 요약 정보 등 새로운 필드를 사용!
-                            "content": f"Source: {article.get('source', 'Google News')}",
+                            "content": article.get('snippet', ''), # 요약본을 본문 내용으로 저장
                             "published_at": article.get('timestamp', datetime.now(KST).isoformat()),
                             
-                            # -- 신규 추가된 확장 필드 (DB Schema 업데이트 필요) --
+                            # -- 신규 추가된 확장 필드 --
                             "thumbnail_url": article.get('thumbnail_url', ''), # 기사 썸네일 이미지 주소
                             "snippet": article.get('snippet', ''),             # 기사 요약본
                             "source_name": article.get('source', ''),          # 언론사 이름

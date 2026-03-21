@@ -39,6 +39,7 @@
             <div class="menu-group-title">Data (데이터 관리)</div>
             <div class="menu-item" id="nav-companies">Companies List (관심 기업들)</div>
             <div class="menu-item" id="nav-analysis-results">Analysis Results (AI 분석결과)</div>
+            <div class="menu-item" id="nav-news-list">Scraped News (수집된 뉴스)</div>
 
             <!-- 사용자 관리 메뉴 그룹 -->
             <div class="menu-group-title">Users (사용자)</div>
@@ -109,6 +110,23 @@
                 <button id="modal-start-btn" class="btn-blue" style="background:#238636;">지금 바로 실행(Start Batch)</button>
                 <!-- 다 끝났을 때 나오는 '닫기' 버튼 (처음엔 안 보이다가 끝날때 나타납니다) -->
                 <button id="modal-ok-btn" class="btn-blue" style="display:none;">닫기 및 새로고침</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 뉴스 상세 보기 모달 -->
+    <div id="news-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="news-modal-title" style="margin:0; font-size:1.2rem; line-height:1.4;">News Detail</h2>
+                <button id="close-news-modal-x" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="news-modal-body" style="padding:20px 0; max-height: 70vh; overflow-y: auto;">
+                <!-- 이미지와 본문이 들어갈 자리 -->
+            </div>
+            <div class="modal-footer">
+                <a id="news-modal-link" href="#" target="_blank" class="btn-blue" style="text-decoration:none; display:inline-block; text-align:center;">원문 기사 보기</a>
+                <button id="close-news-modal-btn" class="btn-blue" style="background:#f0f0f0; color:#333; border:1px solid #ddd;">닫기</button>
             </div>
         </div>
     </div>
