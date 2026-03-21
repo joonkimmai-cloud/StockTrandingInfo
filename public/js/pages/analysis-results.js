@@ -2,6 +2,25 @@ import { renderPagination } from './pagination.js';
 
 const PAGE_SIZE = 15;
 
+// market_summary / prediction 필드에 포함된 에러 JSON을 제거하고
+// 사람이 읽기 좋은 메시지만 반환하는 정제 함수
+function cleanSummary(text) {
+    if (!text) return '내용 없음';
+
+    // 에러 키워드 뒤에 오는 JSON 블록({ ... }) 제거
+    // 패턴 1: "사유: AI Analysis failed: API Error NNN: {...}"
+    let cleaned = text.replace(/사유:\s*AI Analysis failed:[^{]*\{[\s\S]*?\}(?:\s*\})?/g, '');
+
+    // 패턴 2: "사유: ..." 이후 JSON 형태 전체 제거 (혹시 다른 형태도 대응)
+    cleaned = cleaned.replace(/사유:.*$/ms, '사유: AI 분석 중 오류가 발생했습니다.');
+
+    // 남아있는 날 JSON 블록 제거 ({ 로 시작하는 여러 줄 블록)
+    cleaned = cleaned.replace(/\{[\s\S]*?\}/g, '');
+
+    return cleaned.trim() || '내용 없음';
+}
+
+
 function translateSentiment(raw) {
     const s = (raw || '').toUpperCase();
     if (s.includes('BULL') || s.includes('BUY'))  return { label: '🔥 상승 우위', color: 'color:#155724; font-weight:700; background:#d4edda; padding:3px 8px; border-radius:4px;' };
@@ -57,8 +76,8 @@ export async function renderAnalysisResults(container, supabase) {
                 <div class="card-title">최근 시장 요약 리포트
                     <span style="font-size:12px; color:#888; font-weight:400;">${new Date(r.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</span>
                 </div>
-                <p style="white-space:pre-wrap; font-size:14px; margin-bottom:10px;"><b style="color:var(--primary-blue);">💡 시장 전체 요약:</b><br>${r.market_summary || '내용 없음'}</p>
-                <p style="white-space:pre-wrap; font-size:14px;"><b style="color:var(--primary-blue);">🎯 오늘의 예측 & 전략:</b><br>${r.prediction || '내용 없음'}</p>
+                <p style="white-space:pre-wrap; font-size:14px; margin-bottom:10px;"><b style="color:var(--primary-blue);">💡 시장 전체 요약:</b><br>${cleanSummary(r.market_summary)}</p>
+                <p style="white-space:pre-wrap; font-size:14px;"><b style="color:var(--primary-blue);">🎯 오늘의 예측 & 전략:</b><br>${cleanSummary(r.prediction)}</p>
             </div>
         `;
     }
