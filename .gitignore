@@ -11,3 +11,5 @@ dist/
 build/
 market_data.json
 report.json
+tmp_*.py
+tmp_alter.py
