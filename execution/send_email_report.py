@@ -29,7 +29,7 @@ def build_error_html_template(data):
     # 이제 에러 템플릿도 별도로 사용하지 않지만 하위 호환성을 위해 함수만 남겨둠
     return ""
 
-def build_html_template(data):
+def build_html_template(data, news_data=None):
     if data.get('status') == 'error':
         raw = data.get('raw_data', {})
         err_msg = data.get('error_message', '알 수 없는 오류')
@@ -64,16 +64,34 @@ def build_html_template(data):
             return "❄️ 하락 우위"
         return f"⚖️ 중립 ({sentiment_str})"
 
+    if not news_data: news_data = {}
+
     kr_html = ""
     for stock in data.get('kr_analysis', []):
         s_upper = str(stock.get('sentiment', '')).upper()
         sentiment_class = "bullish" if "BULL" in s_upper or "BUY" in s_upper else "bearish"
         display_sentiment = translate_sentiment(stock.get('sentiment'))
+        
+        # 주식 뉴스 매핑
+        news_html = ""
+        for n_stock in news_data.get('kr', []):
+            if stock['name'] == n_stock['name'] or (n_stock['symbol'] and n_stock['symbol'] in stock['name']):
+                articles = n_stock.get('news', [])
+                if articles:
+                    news_html = "<div style='margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;'>"
+                    news_html += "<strong style='font-size: 0.85em; color: #555;'>📰 원문 뉴스 기사:</strong><ul style='font-size: 0.85em; margin: 5px 0; padding-left: 20px;'>"
+                    for article in articles[:3]: # 상위 3개 기사만
+                        if "**" not in article.get('title', ''):
+                            news_html += f"<li><a href='{article.get('url', '#')}' style='color: #004e92; text-decoration: none;' target='_blank'>{article.get('title', '제목없음')}</a></li>"
+                    news_html += "</ul></div>"
+                break
+
         kr_html += f"""
         <div class="stock-card">
             <span class="sentiment {sentiment_class}">{display_sentiment}</span>
             <div class="stock-name">{stock['name']}</div>
-            <div style="font-size: 0.9em; margin-top: 5px;">{stock['analysis']}</div>
+            <div style="font-size: 0.9em; margin-top: 5px; line-height: 1.5;">{stock['analysis']}</div>
+            {news_html}
         </div>
         """
         
@@ -82,11 +100,27 @@ def build_html_template(data):
         s_upper = str(stock.get('sentiment', '')).upper()
         sentiment_class = "bullish" if "BULL" in s_upper or "BUY" in s_upper else "bearish"
         display_sentiment = translate_sentiment(stock.get('sentiment'))
+        
+        # 주식 뉴스 매핑
+        news_html = ""
+        for n_stock in news_data.get('us', []):
+            if stock['name'] == n_stock['name'] or (n_stock['symbol'] and n_stock['symbol'] in stock['name']):
+                articles = n_stock.get('news', [])
+                if articles:
+                    news_html = "<div style='margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;'>"
+                    news_html += "<strong style='font-size: 0.85em; color: #555;'>📰 원문 뉴스 기사:</strong><ul style='font-size: 0.85em; margin: 5px 0; padding-left: 20px;'>"
+                    for article in articles[:3]:
+                        if "**" not in article.get('title', ''):
+                            news_html += f"<li><a href='{article.get('url', '#')}' style='color: #004e92; text-decoration: none;' target='_blank'>{article.get('title', '제목없음')}</a></li>"
+                    news_html += "</ul></div>"
+                break
+
         us_html += f"""
         <div class="stock-card">
             <span class="sentiment {sentiment_class}">{display_sentiment}</span>
             <div class="stock-name">{stock['name']}</div>
-            <div style="font-size: 0.9em; margin-top: 5px;">{stock['analysis']}</div>
+            <div style="font-size: 0.9em; margin-top: 5px; line-height: 1.5;">{stock['analysis']}</div>
+            {news_html}
         </div>
         """
 
@@ -180,7 +214,12 @@ def main():
     with open('.tmp/report.json', 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    html_content = build_html_template(data)
+    news_data = {}
+    if os.path.exists('.tmp/news_data.json'):
+        with open('.tmp/news_data.json', 'r', encoding='utf-8') as f:
+            news_data = json.load(f)
+
+    html_content = build_html_template(data, news_data)
     subscribers = get_subscribers()
     
     print(f"Starting email dispatch to {len(subscribers)} recipients...")
