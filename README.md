@@ -1,6 +1,6 @@
 # Stock Trading Alpha Report & Registration UI
 
-Automated stock report system selecting Top 10 Relative Volume (RVOL) spikes daily (06:00 KST).
+Automated stock report system selecting Top 10 Relative Volume (RVOL) spikes daily (07:30 KST).
 
 ## 🚀 Deployment
 
@@ -20,10 +20,13 @@ The system is automated via `.github/workflows/daily_report.yml`.
 - `SUPABASE_KEY`: Supabase API Key (anon/service_role).
 
 ### 3. Database (Supabase)
-Run the SQL found in `supabase_schema.sql` in your Supabase SQL Editor to create the subscribers table.
+Run the SQL found in `database/supabase_schema.sql` in your Supabase SQL Editor to create the subscribers table.
 
 ## 📁 Project Structure
 - `public/`: Registration UI (Static).
-- `execution/`: Python batch scripts.
+- `execution/`: Python batch scripts (core logic).
+- `database/`: SQL schema and migrations.
+- `docs/`: Project documentation and plans.
+- `configs/`: Admin hash and model configurations.
 - `directives/`: SOP Documentation.
 - `main.py`: Main orchestrator.

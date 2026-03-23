@@ -103,11 +103,21 @@ export async function renderAnalysisResults(container, supabase) {
                 const compName = item.companies?.name || '알수없음';
                 const compSymbol = item.companies?.symbol || '-';
                 const dateText = new Date(item.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+                
+                let analysisHtml = item.analysis_content || '분석 내용 없음';
+                // 만약 에러 폴백(기사 헤드라인)인 경우 그대로 보여주고,
+                // 정상적인 분석 정보인 경우에는 헤더를 추가합니다.
+                if (analysisHtml.includes('[기사 헤드라인]')) {
+                    // 그대로 진행
+                } else if (analysisHtml !== '분석 내용 없음') {
+                    analysisHtml = `<b style="color:var(--success-color); display:block; margin-bottom:5px;">[ai 분석 정보]</b>${analysisHtml}`;
+                }
+
                 return `<tr>
                     <td class="col-no">${no}</td>
                     <td style="text-align:center;"><b>${compName}</b><br><span style="font-size:12px;color:#777;">(${compSymbol})</span></td>
                     <td style="text-align:center;"><span style="${color}">${label}</span></td>
-                    <td style="white-space:pre-wrap; font-size:13px; line-height:1.5;">${item.analysis_content || '분석 내용 없음'}</td>
+                    <td style="white-space:pre-wrap; font-size:13px; line-height:1.5;">${analysisHtml}</td>
                     <td style="font-size:12px; color:#555; text-align:center;">${dateText}</td>
                 </tr>`;
             }).join('');

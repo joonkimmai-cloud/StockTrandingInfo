@@ -76,7 +76,7 @@ function setErr(msg) { document.getElementById('verify-error').innerText = msg; 
 
 // ─── Supabase 헬퍼 (REST 직접 호출) ─────────────────────────
 async function sbGet(table, query) {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}&select=*`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
     });
     return r.json();
@@ -98,9 +98,68 @@ async function sbDelete(table, query) {
     });
 }
 
+// ─── 데이터 로드 (뉴스 그리드) ──────────────────────────────
+async function loadNews() {
+    const grid = document.getElementById('news-grid');
+    if (!grid) return;
+
+    try {
+        // 넉넉하게 50개를 가져와서 JS에서 회사별로 필터링 (최신 순)
+        const query = "select=*,companies(per,pbr,marcap)&order=published_at.desc&limit=50";
+        const allNews = await sbGet('news_articles', query);
+
+        if (!allNews || allNews.length === 0) {
+            grid.innerHTML = '<div class="loading-state">현재 표시할 최신 기사가 없습니다.</div>';
+            return;
+        }
+
+        // 중복 회사 제거 (가장 최신 기사만 선택)
+        const uniqueCompanies = new Map();
+        const filteredNews = [];
+        
+        for (const article of allNews) {
+            const compName = article.company_name || 'Stock Alpha';
+            if (!uniqueCompanies.has(compName)) {
+                uniqueCompanies.set(compName, true);
+                filteredNews.push(article);
+            }
+            if (filteredNews.length === 6) break;
+        }
+
+        grid.innerHTML = '';
+
+        filteredNews.forEach(article => {
+            const date = new Date(article.published_at).toLocaleDateString('ko-KR', {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+
+            const sourceHtml = article.source_url 
+                ? `<a href="${article.source_url}" target="_blank" class="source-link">${article.source_name || 'News Source'}</a>`
+                : `<span class="source-link">${article.source_name || 'News Source'}</span>`;
+
+            const cardHtml = `
+                <div class="card" onclick="location.href='news.html?id=${article.id}'" style="cursor:pointer">
+                    <div class="company-name">${article.company_name || 'Stock Alpha'}</div>
+                    <h3>${article.title}</h3>
+                    <div class="divider"></div>
+                    <div class="summary">${article.snippet || article.content || '기사 요약 정보를 불러올 수 없습니다.'}</div>
+                    <div class="card-footer">
+                        <div class="indicators">${sourceHtml}</div>
+                        <div class="post-date">${date}</div>
+                    </div>
+                </div>
+            `;
+            grid.insertAdjacentHTML('beforeend', cardHtml);
+        });
+
+    } catch (err) {
+        console.error('loadNews error:', err);
+        grid.innerHTML = '<div class="loading-state">데이터를 불러오는 중 오류가 발생했습니다.</div>';
+    }
+}
+
 // ─── 인증코드 이메일 발송 (EmailJS) ─────────────────────────
 async function sendCodeEmail(email, code) {
-    // EmailJS SDK가 로드된 경우 사용
     if (typeof emailjs !== 'undefined') {
         return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
             to_email: email,
@@ -108,7 +167,6 @@ async function sendCodeEmail(email, code) {
             expiry_minutes: '10'
         }, EMAILJS_PUBLIC_KEY);
     }
-    // fallback: Cloudflare Pages Function 시도
     const res = await fetch('/api/send-verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,7 +178,7 @@ async function sendCodeEmail(email, code) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 1단계: 구독 버튼 클릭 (UI 플로우 개선)
+// 1단계: 구독 버튼 클릭
 // ─────────────────────────────────────────────────────────────
 async function subscribe() {
     const emailInput = document.getElementById('email');
@@ -133,84 +191,53 @@ async function subscribe() {
         return;
     }
 
-    btn.innerText = '처리 중...';
+    btn.innerText = 'Processing...';
     btn.disabled = true;
     messageEl.innerHTML = '';
 
     try {
-        // [1] 중복 이메일 우선 확인
-        const existing = await sbGet('subscribers', `email=eq.${encodeURIComponent(email)}`);
+        const existing = await sbGet('subscribers', `email=eq.${encodeURIComponent(email)}&select=email`);
         if (existing && existing.length > 0) {
-            alert(`⚠️ 이미 등록된 이메일입니다!\n\n'${email}' 주소는 이미 구독 중입니다.\n다른 이메일 주소를 사용해 주세요.`);
+            alert(`이미 구독 중인 이메일입니다.`);
             messageEl.innerHTML = '<span class="error">이미 등록된 이메일입니다.</span>';
             return;
         }
 
-        // [2] 팝업 화면을 최우선으로 오픈하여 사용자 경험 개선
-        // 이메일 전송까지 수 초가 걸리므로 팝업부터 띄워 로딩 상태를 보여줍니다.
         showOverlay(email);
         bindVerifyButtons(email);
         
         const confirmBtn = document.getElementById('verify-confirm-btn');
         const codeInput = document.getElementById('verify-code-input');
-        
-        // 데이터 전송 중에는 확인 버튼과 입력창을 막아둠
         confirmBtn.disabled = true;
         codeInput.disabled = true;
-        setErr('인증 코드 생성 및 발송 중입니다... 잠시만 기다려 주세요.');
-        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 인증 코드를 발송하고 있습니다...</span>';
+        setErr('인증 코드를 발송하고 있습니다...');
 
-        // [3] 백그라운드로 인증 코드 생성 및 DB 저장
         const code = String(Math.floor(100000 + Math.random() * 900000));
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
         await sbDelete('email_verifications', `email=eq.${encodeURIComponent(email)}`);
-        const saveResp = await sbInsert('email_verifications', { email, code, expires_at: expiresAt, verified: false });
+        await sbInsert('email_verifications', { email, code, expires_at: expiresAt, verified: false });
+        await sendCodeEmail(email, code);
         
-        if (!saveResp.ok && saveResp.status !== 201) {
-            const errBody = await saveResp.text().catch(() => '');
-            console.error('DB save failed:', saveResp.status, errBody);
-            setErr(`⚠️ DB 저장 실패 (${saveResp.status})\n관리자에게 문의해 주세요.`);
-            return; // 팝업은 열려있지만 에러 상태 유지
-        }
-
-        // [4] 백그라운드로 이메일 발송 처리
-        try {
-            await sendCodeEmail(email, code);
-            
-            // 전송 완료 시 UI 활성화
-            setErr('');
-            confirmBtn.disabled = false;
-            codeInput.disabled = false;
-            codeInput.focus();
-            messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 이메일을 확인하고 코드를 입력해 주세요.</span>';
-            
-        } catch (emailErr) {
-            console.error('Email send failed:', emailErr);
-            hideOverlay();
-            alert(`⚠️ 이메일 전송에 실패했습니다.\n\n다시 구독 버튼을 눌러 시도해 주세요.\n(오류: ${emailErr.message || "알 수 없는 오류"})`);
-            messageEl.innerHTML = `<span class="error">이메일 발송에 실패했습니다.</span>`;
-            return;
-        }
+        setErr('');
+        confirmBtn.disabled = false;
+        codeInput.disabled = false;
+        codeInput.focus();
+        messageEl.innerHTML = '<span style="color:#aaa;font-size:.88rem;">📧 인증 코드가 발송되었습니다.</span>';
 
     } catch (err) {
         console.error('subscribe error:', err);
         hideOverlay();
-        alert(`⚠️ 과정 중 오류가 발생했습니다.\n\n다시 시도해 주세요.\n(${err.message})`);
-        messageEl.innerHTML = `<span class="error">구독 요청 중 오류가 발생했습니다.</span>`;
+        alert(`오류 발생: ${err.message}`);
     } finally {
-        btn.innerText = '무료 리포트 구독하기';
+        btn.innerText = 'Subscribe';
         btn.disabled = false;
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// 팝업 버튼 이벤트
-// ─────────────────────────────────────────────────────────────
 function bindVerifyButtons(email) {
     document.getElementById('verify-confirm-btn').onclick = () => verifyAndRegister(email);
     document.getElementById('verify-code-input').onkeydown = e => { if (e.key === 'Enter') verifyAndRegister(email); };
-
     document.getElementById('verify-resend-btn').onclick = async () => {
         setErr('재발송 중...');
         try {
@@ -219,73 +246,32 @@ function bindVerifyButtons(email) {
             await sbDelete('email_verifications', `email=eq.${encodeURIComponent(email)}`);
             await sbInsert('email_verifications', { email, code, expires_at: expiresAt, verified: false });
             await sendCodeEmail(email, code);
-            setErr('✅ 재발송 완료! 이메일을 확인해 주세요.');
-        } catch (e) { setErr(`재발송 실패: ${e.message}`); }
+            setErr('✅ 재발송 완료!');
+        } catch (e) { setErr(`실패: ${e.message}`); }
     };
-
-    document.getElementById('verify-cancel-btn').onclick = () => {
-        hideOverlay();
-        document.getElementById('message').innerHTML = '';
-    };
+    document.getElementById('verify-cancel-btn').onclick = () => hideOverlay();
 }
 
-// ─────────────────────────────────────────────────────────────
-// 2단계: 코드 검증 + 구독 등록
-// ─────────────────────────────────────────────────────────────
 async function verifyAndRegister(email) {
     const codeInput = document.getElementById('verify-code-input');
     const confirmBtn = document.getElementById('verify-confirm-btn');
     const code = codeInput.value.trim();
-
-    if (code.length !== 6) { setErr('⚠️ 6자리 코드를 모두 입력해 주세요.'); codeInput.focus(); return; }
-
-    confirmBtn.innerText = '확인 중...';
+    if (code.length !== 6) { setErr('⚠️ 6자리 코드를 입력해 주세요.'); return; }
+    confirmBtn.innerText = 'Wait...';
     confirmBtn.disabled = true;
-    setErr('');
-
     try {
-        // ① Supabase에서 코드 조회
-        const records = await sbGet('email_verifications', `email=eq.${encodeURIComponent(email)}`);
-
-        if (!records || records.length === 0) {
-            setErr('인증 요청 정보가 없습니다. 처음부터 다시 시도해 주세요.');
-            return;
-        }
+        const records = await sbGet('email_verifications', `email=eq.${encodeURIComponent(email)}&select=*`);
+        if (!records || records.length === 0) { setErr('인증 정보 없음'); return; }
         const rec = records[0];
-        const now = new Date().toISOString();
-
-        // ② 만료 확인
-        if (rec.expires_at < now) {
-            setErr('⌛ 코드가 만료되었습니다. [코드 재발송]을 눌러주세요.');
-            return;
-        }
-
-        // ③ 코드 일치 확인
-        if (rec.code !== code) {
-            setErr('❌ 인증 코드가 일치하지 않습니다. 다시 확인해 주세요.');
-            codeInput.value = '';
-            codeInput.focus();
-            return;
-        }
-
-        // ④ 성공 → subscribers 등록
-        const regResp = await sbInsert('subscribers', { email }, 'resolution=merge-duplicates');
-        if (!regResp.ok && regResp.status !== 201) {
-            throw new Error('구독자 등록에 실패했습니다.');
-        }
-
-        // ⑤ 인증 레코드 삭제
+        if (rec.expires_at < new Date().toISOString()) { setErr('⌛ 만료됨'); return; }
+        if (rec.code !== code) { setErr('❌ 코드 틀림'); return; }
+        await sbInsert('subscribers', { email }, 'resolution=merge-duplicates');
         await sbDelete('email_verifications', `email=eq.${encodeURIComponent(email)}`);
-
         hideOverlay();
-        document.getElementById('message').innerHTML = '<span class="success">🎉 구독 완료! 내일 아침부터 리포트가 발송됩니다.</span>';
+        document.getElementById('message').innerHTML = '<span class="success">🎉 구독이 완료되었습니다!</span>';
         document.getElementById('email').value = '';
-
-    } catch (err) {
-        console.error('verify error:', err);
-        setErr(`오류: ${err.message}`);
-    } finally {
-        confirmBtn.innerText = '확인';
-        confirmBtn.disabled = false;
-    }
+    } catch (err) { setErr(`오류: ${err.message}`); }
+    finally { confirmBtn.innerText = 'Confirm'; confirmBtn.disabled = false; }
 }
+
+window.onload = loadNews;

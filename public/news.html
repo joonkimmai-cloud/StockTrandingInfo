@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>기사 분석 - Stock Alpha</title>
+    <!-- 공통 스타일 및 뉴스 전용 스타일 -->
+    <link rel="stylesheet" href="css/index.css">
+    <link rel="stylesheet" href="css/news.css">
+    <!-- Google Fonts -->
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+    <!-- Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="main-wrapper">
+        <!-- 1. 기사 목록 뷰 -->
+        <section id="news-list-view" style="display: none;">
+            <div class="page-header list-header">
+                <div class="tag">Market Intelligence</div>
+                <h1>모든 기사 목록</h1>
+                <p>AI가 분석한 상위 종목의 실시간 이슈와 기업 분석 보고서입니다.</p>
+                <a href="index.html" class="back-home-link">🏠 홈으로 가기</a>
+            </div>
+            
+            <div class="list-container">
+                <table id="news-table">
+                    <thead>
+                        <tr>
+                            <th>기업</th>
+                            <th>기사 제목</th>
+                            <th>출처</th>
+                            <th>발행일</th>
+                        </tr>
+                    </thead>
+                    <tbody id="news-list-body">
+                        <!-- JS에서 데이터 채움 -->
+                        <tr><td colspan="4" style="text-align:center; padding:50px;">로딩 중입니다...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 페이지네이션 컨트롤 -->
+            <div id="pagination-controls" class="pagination">
+                <!-- JS에서 버튼 생성 -->
+            </div>
+        </section>
+
+        <!-- 2. 기사 상세 뷰 -->
+        <section id="news-detail-view" style="display: none;">
+            <div class="detail-nav">
+                <button onclick="goToList()" class="btn-back">← 목록으로 돌아가기</button>
+            </div>
+            
+            <div class="detail-container">
+                <div class="detail-header">
+                    <div class="detail-company" id="detail-company">COMPANY</div>
+                    <h1 id="detail-title">기사 제목을 불러오고 있습니다.</h1>
+                    <div class="detail-meta">
+                        <span id="detail-source">Source</span>
+                        <span class="sep">|</span>
+                        <span id="detail-date">Date</span>
+                    </div>
+                </div>
+
+                <div class="detail-body">
+                    <!-- AI 섹션을 상단으로 이동하여 강조 -->
+                    <div class="ai-section">
+                        <div class="section-label ai-label">🤖 AI 투자 인사이트 분석</div>
+                        <div class="ai-card">
+                            <div id="ai-content" class="ai-text">
+                                해당 종목에 대한 AI 분석 데이터를 조회하고 있습니다...
+                            </div>
+                            <div id="ai-sentiment" class="sentiment-tag" style="display:none;">Neutral</div>
+                        </div>
+                    </div>
+
+                    <div class="article-section">
+                        <div class="section-label">기사 본문 및 분석 요약</div>
+                        <div id="detail-content" class="article-text">
+                            기사 내용을 불러오는 중입니다...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- JS 로직 -->
+    <script src="js/news.js"></script>
+</body>
+</html>

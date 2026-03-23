@@ -47,11 +47,12 @@ body {
     backdrop-filter: blur(10px); /* 뒷 배경이 살짝 흐릿하게 비쳐보이는 고급스러운 유리 느낌 */
 }
 
-/* STOCK ALPHA ADMIN 등 제목, 로고 타이틀 부분 (.logo) */
+/* STOCK TRANDING INFO ADMIN 등 제목, 로고 타이틀 부분 (.logo) */
 .logo {
     font-size: 1.5rem; /* 글자 크기는 1.5배 크게 */
     font-weight: 800;  /* 폰트는 아주 두껍고 진하게(bold) */
     background: var(--primary-gradient); /* 색상을 앞서 만든 그라데이션 변수로 지정 */
+    background-clip: text;
     -webkit-background-clip: text; /* 텍스트 외곽선 안쪽으로만 색상을 채우는 기술 */
     -webkit-text-fill-color: transparent; /* 글자 자체 색을 투명하게 만들어 그라데이션 배경을 노출시킵니다. */
     margin-bottom: 30px; /* 로고와 입력창 사이에 여유 간격 부여 */

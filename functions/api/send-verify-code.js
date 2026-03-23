@@ -60,7 +60,7 @@ export async function onRequestPost(context) {
           <div style="max-width:460px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,.12);">
             <div style="background:linear-gradient(135deg,#004e92,#000428);color:#fff;padding:32px;text-align:center;">
               <h2 style="margin:0;font-size:1.4rem;">📬 이메일 인증</h2>
-              <p style="margin:8px 0 0;opacity:.8;font-size:.9rem;">Stock Alpha 구독 인증 코드입니다.</p>
+              <p style="margin:8px 0 0;opacity:.8;font-size:.9rem;">Stock Tranding Info 구독 인증 코드입니다.</p>
             </div>
             <div style="padding:36px;text-align:center;">
               <p style="font-size:1rem;color:#333;margin-bottom:6px;">아래 6자리 인증 코드를 입력해 주세요.</p>
@@ -80,9 +80,9 @@ export async function onRequestPost(context) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                from: 'Stock Alpha <onboarding@resend.dev>',
+                from: 'Stock Tranding Info <onboarding@resend.dev>',
                 to: [email],
-                subject: '[Stock Alpha] 이메일 인증 코드',
+                subject: '[Stock Tranding Info] 이메일 인증 코드',
                 html: htmlBody
             })
         });

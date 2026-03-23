@@ -8,7 +8,7 @@
     -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Alpha - 프리미엄 데일리 증권 리포트</title>
+    <title>Stock Tranding Info - 프리미엄 데일리 증권 리포트</title>
     
     <!-- 1. 글꼴(Pretendard) 파일 외부에서 가져오기 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
@@ -21,38 +21,43 @@
 </head>
 
 <body>
-    <!-- 내용물을 묶어 화면 정중앙에 보여주는 둥근 유리 상자(.container) -->
-    <div class="container">
-        
-        <!-- 맨 위의 보라색 작은 태그 모양 -->
-        <div class="tag">ALPHA TRADING SYSTEM</div>
-        
-        <!-- 메인 헤드라인 (가장 큰 글씨) -->
-        <h1>Daily Spikes</h1>
-        
-        <!-- 서비스 설명 문구 (작은 글씨) -->
-        <p>전일 거래량 급증 종목을 AI로 분석한<br>전문 에널리스트 리포트를 매일 아침 받아보세요.</p>
-        
-        <!-- 사용자 이메일 입력 + 버튼을 모아둔 구역 -->
-        <div class="input-group">
-            
-            <!-- 이메일 입력 상자 (required 속성은 '반드시 입력해야 함'을 뜻함) -->
-            <!-- 이메일 값 입력 시, id값인 'email' 을 이용해 자바스크립트가 추적합니다. -->
-            <input type="email" id="email" placeholder="이메일 주소를 입력하세요" required>
-            
-            <!-- 구독 버튼을 클릭하면(onclick) 'subscribe()'라는 자바스크립트 기능을 실행! -->
-            <button onclick="subscribe()" id="btnText">무료 리포트 구독하기</button>
-            
-        </div>
-        
-        <!-- 자바스크립트가 에러/성공 메시지를 텍스트로 띄워줄 빈 공간 -->
-        <div id="message"></div>
+    <div class="main-wrapper">
+        <header class="page-header">
+            <div class="tag">Alpha Trading System</div>
+            <h1>Daily Market Insights</h1>
+            <p>전일 거래량 급증 종목을 AI로 분석한 고품격 증권 리포트</p>
+        </header>
 
-        <!-- 하단 관리자(Admin) 전용 페이지로 이동하는 링크 -->
-        <div class="admin-link">
-            <a href="login.html">Admin Dashboard →</a>
+        <!-- 뉴스 목록으로 가는 버튼 (우측 상단) -->
+        <div style="display:flex; justify-content:flex-end; max-width:1200px; margin: 0 auto 15px; padding: 0 10px;">
+            <a href="news.html" class="btn-all-news">전체 소식 보기 →</a>
         </div>
-        
+
+        <!-- 3x3 뉴스 그리드 영역 -->
+        <main class="news-grid" id="news-grid">
+            <!-- 자바스크립트에 의해 로딩 시 카드가 채워집니다. -->
+            <div class="loading-state">기사 데이터를 불러오는 중...</div>
+        </main>
+
+        <!-- 하단 뉴스레터 섹션 -->
+        <section class="newsletter-section">
+            <h2>Stay Updated with Our Newsletter</h2>
+            <p>AI가 분석한 최신 종목 리포트를 당신의 이메일로 받아보세요.</p>
+            <div class="input-group">
+                <input type="email" id="email" placeholder="Enter your email address" required>
+                <button onclick="subscribe()" id="btnText">Subscribe</button>
+            </div>
+            <div id="message"></div>
+        </section>
+
+        <footer class="page-footer">
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="login.html">Contact Us</a>
+                <a href="login.html">Admin Dashboard</a>
+            </div>
+        </footer>
     </div>
 
     <!-- 4. 버튼 동작 처리 등 실질적인 로직이 담긴 'index.js' 파일 연결 (맨 마지막에) -->

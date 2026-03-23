@@ -128,7 +128,7 @@ def save_to_supabase():
                             "company_name": stock['name'],
                             "title": article['title'],
                             "source_url": article.get('url'),
-                            "content": article.get('snippet', ''),
+                            "content": article.get('content', article.get('snippet', '')),
                             "published_at": pub_date,
                             "thumbnail_url": article.get('thumbnail_url', ''),
                             "snippet": article.get('snippet', ''),

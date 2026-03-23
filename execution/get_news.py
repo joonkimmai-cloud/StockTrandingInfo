@@ -11,7 +11,34 @@ KST = ZoneInfo('Asia/Seoul')
 
 from dotenv import load_dotenv
 
+import trafilatura
+from markdownify import markdownify as md
+
 load_dotenv()
+
+async def fetch_full_content(session, url):
+    """기사 URL에서 본문 내용을 가져와 Markdown으로 변환합니다."""
+    if not url or url == '#' or 'news.google.com' in url: 
+        return ""
+    
+    try:
+        # User-Agent 설정 (일부 사이트 차단 방지)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        async with session.get(url, headers=headers, timeout=10) as response:
+            if response.status == 200:
+                html = await response.text()
+                # trafilatura를 사용하여 본문 추출
+                content = trafilatura.extract(html, output_format='markdown', include_links=True, include_images=False)
+                if not content:
+                    # trafilatura 실패 시 markdownify로 대체 시도
+                    content = md(html, strip=['script', 'style', 'nav', 'header', 'footer'])
+                return content if content else ""
+    except Exception as e:
+        # print(f"  [Error] Content fetch failed for {url}: {e}")
+        pass
+    return ""
 
 async def check_existing_news(session, symbol, all_db_companies):
     today = datetime.now(KST).strftime('%Y-%m-%d')
@@ -43,6 +70,7 @@ async def check_existing_news(session, symbol, all_db_companies):
                             'url': item.get('source_url', '#'),
                             'source': item.get('source_name', 'DB'),
                             'snippet': item.get('snippet', ''),
+                            'content': item.get('content', ''),
                             'thumbnail_url': item.get('thumbnail_url', '')
                         })
                     return {"is_cached": True, "articles": articles}
@@ -78,6 +106,7 @@ async def fetch_news_for_stock(session, stock, all_db_companies):
         "engine": "google",
         "q": query,
         "tbm": "nws",
+        "tbs": "qdr:d", # 지난 24시간 이내 기사만 수집 (오전 7:30 실행 기준 전일 7:30~오늘 7:29)
         "api_key": serpapi_key,
         "num": "5" # 가져올 뉴스 기사 최대 개수
     }
@@ -93,8 +122,10 @@ async def fetch_news_for_stock(session, stock, all_db_companies):
             
             articles = []
             if 'news_results' in data:
+                # 1단계: 기본 뉴스 정보 수집
+                temp_articles = []
                 for item in data['news_results'][:4]:
-                    articles.append({
+                    temp_articles.append({
                         'title': item.get('title', '제목 없음'),
                         'url': item.get('link', '#'),
                         'source': item.get('source', 'Google News'),
@@ -102,6 +133,17 @@ async def fetch_news_for_stock(session, stock, all_db_companies):
                         'snippet': item.get('snippet', ''),
                         'thumbnail_url': item.get('thumbnail', '')
                     })
+                
+                # 2단계: 각 기사별 본문 전체 내용 수집 (병렬 비동기 처리)
+                if temp_articles:
+                    print(f"    - {name}({symbol}) 본문(MD) 수집 중...")
+                    content_tasks = [fetch_full_content(session, a['url']) for a in temp_articles]
+                    contents = await asyncio.gather(*content_tasks)
+                    
+                    for i, a in enumerate(temp_articles):
+                        # 본문이 수집되면 content에 저장, 실패 시 snippet으로 대체
+                        a['content'] = contents[i] if contents[i] else a.get('snippet', '')
+                        articles.append(a)
                     
             status = "success" if articles else "no_news_found"
             if articles:
