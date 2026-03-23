@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install pandas yfinance finance-datareader google-genai python-dotenv beautifulsoup4 requests aiohttp
+          pip install pandas yfinance finance-datareader google-genai python-dotenv beautifulsoup4 requests aiohttp trafilatura markdownify
 
       - name: Run Analytics Pipeline
         env:
