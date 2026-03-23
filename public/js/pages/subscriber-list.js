@@ -37,7 +37,7 @@ export async function renderSubscriberList(contentEl, supabaseClient) {
         const from = page * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
-        const { data } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('subscribers')
             .select('*')
             .order('created_at', { ascending: false })
@@ -50,13 +50,44 @@ export async function renderSubscriberList(contentEl, supabaseClient) {
             tbody.innerHTML = data.map((row, i) => {
                 const no = from + i + 1;
                 const dateText = new Date(row.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+                const statusLabel = row.is_active !== false ? 'Active (구독중)' : 'Disabled (중단됨)';
+                const statusColor = row.is_active !== false ? 'background:#238636;color:#fff;' : 'background:#666;color:#fff;';
+                
                 return `<tr>
                     <td class="col-no">${no}</td>
                     <td style="font-weight:600">${row.email}</td>
-                    <td>Active (활성)</td>
+                    <td>
+                        <button class="status-btn" 
+                                data-id="${row.id}" 
+                                data-active="${row.is_active !== false}"
+                                style="border:none; border-radius:4px; padding:4px 10px; cursor:pointer; font-size:12px; font-weight:600; ${statusColor}">
+                            ${statusLabel}
+                        </button>
+                    </td>
                     <td style="color:var(--text-muted)">${dateText}</td>
                 </tr>`;
             }).join('');
+
+            // 클릭 이벤트로 상태 전환
+            tbody.querySelectorAll('.status-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.getAttribute('data-id');
+                    const currentActive = btn.getAttribute('data-active') === 'true';
+                    const nextActive = !currentActive;
+
+                    const { error: updateError } = await supabaseClient
+                        .from('subscribers')
+                        .update({ is_active: nextActive })
+                        .eq('id', id);
+
+                    if (updateError) {
+                        alert('상태 변경 실패: ' + updateError.message);
+                    } else {
+                        // 성공하면 화면 새로고침 없이 바로 시각적 피드백
+                        loadPage(currentPage);
+                    }
+                });
+            });
         } else {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">현재 구독자가 없습니다.</td></tr>';
         }

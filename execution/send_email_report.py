@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 import requests
 
 def get_subscribers():
-    url = f"{os.getenv('SUPABASE_URL')}/rest/v1/subscribers"
+    # 구독 상태가 활성(is_active가 true이거나 null인 경우)인 사람만 불러옵니다.
+    url = f"{os.getenv('SUPABASE_URL')}/rest/v1/subscribers?is_active=neq.false"
     headers = {
         "apikey": os.getenv("SUPABASE_KEY"),
         "Authorization": f"Bearer {os.getenv('SUPABASE_KEY')}"
@@ -148,7 +149,7 @@ def build_html_template(data, news_data=None):
     <body>
         <div class="container">
             <div class="header">
-                <span style="font-size: 0.9em; opacity: 0.8;">ALPHA TRADING INSIGHTS</span>
+                <span style="font-size: 0.9em; opacity: 0.8;">TRANDING INFO INSIGHTS</span>
                 <h1 style="margin: 10px 0;">Daily Market Report</h1>
                 <p style="margin: 0; font-size: 1.1em; opacity: 0.9;">{datetime.now(KST).strftime('%Y-%m-%d %H:%M')}</p>
             </div>
@@ -170,7 +171,7 @@ def build_html_template(data, news_data=None):
                 </div>
             </div>
             <div class="footer">
-                <p>본 고지사항은 투자 참고용이며 최종 투자 결정은 본인의 판단하에 이루어져야 합니다.<br>Stock Trading Top 10 Team</p>
+                <p>본 고지사항은 투자 참고용이며 최종 투자 결정은 본인의 판단하에 이루어져야 합니다.<br>Stock Tranding Info Team</p>
                 <div style="margin-top: 15px;">
                     <a href="#" style="color: #004e92; text-decoration: none;">Unsubscribe</a> | <a href="#" style="color: #004e92; text-decoration: none;">View Online</a>
                 </div>
@@ -194,7 +195,7 @@ def send_email(subject, body, to_emails):
 
         for to_email in to_emails:
             msg = MIMEMultipart()
-            msg['From'] = f"Stock Alpha Report <{smtp_user}>"
+            msg['From'] = f"Stock Tranding Info Report <{smtp_user}>"
             msg['To'] = to_email
             msg['Subject'] = subject
             msg.attach(MIMEText(body, 'html'))
