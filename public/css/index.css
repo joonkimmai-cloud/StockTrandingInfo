@@ -89,13 +89,30 @@ h1 {
     box-shadow: 0 10px 30px rgba(0,0,0,0.05);
 }
 
-.card .company-name {
+.card-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.sentiment-badge {
     font-size: 12px;
     font-weight: 700;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 15px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+.sentiment-badge.positive { color: #28a745; background: #e6f9ee; }
+.sentiment-badge.negative { color: #dc3545; background: #fde8ea; }
+.sentiment-badge.neutral  { color: #6c757d; background: #f0f0f0; }
+
+.card .company-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #333;
+    letter-spacing: 0.5px;
+    margin-bottom: 0;
 }
 
 .card h3 {

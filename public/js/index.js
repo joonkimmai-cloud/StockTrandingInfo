@@ -98,59 +98,87 @@ async function sbDelete(table, query) {
     });
 }
 
-// ─── 데이터 로드 (뉴스 그리드) ──────────────────────────────
+// ─── 데이터 로드 (AI 분석 그리드) ──────────────────────────────
 async function loadNews() {
     const grid = document.getElementById('news-grid');
     if (!grid) return;
 
-    try {
-        // 넉넉하게 50개를 가져와서 JS에서 회사별로 필터링 (최신 순)
-        const query = "select=*,companies(per,pbr,marcap)&order=published_at.desc&limit=50";
-        const allNews = await sbGet('news_articles', query);
+    // 감성 한글 매핑
+    const sentimentMap = {
+        'bullish': '📈 상승 우세',
+        'bearish': '📉 하락 주의',
+        'neutral': '⚖️ 중립'
+    };
+    const sentimentClass = {
+        'bullish': 'positive',
+        'bearish': 'negative',
+        'neutral': 'neutral'
+    };
 
-        if (!allNews || allNews.length === 0) {
-            grid.innerHTML = '<div class="loading-state">현재 표시할 최신 기사가 없습니다.</div>';
+    try {
+        // stock_analysis 테이블에서 최신 AI 분석 데이터를 가져옴
+        const query = "select=*,companies(name,symbol,per,pbr,marcap)&order=created_at.desc&limit=30";
+        const allAnalysis = await sbGet('stock_analysis', query);
+
+        if (!allAnalysis || allAnalysis.length === 0) {
+            grid.innerHTML = '<div class="loading-state">현재 표시할 AI 분석 데이터가 없습니다.</div>';
             return;
         }
 
-        // 중복 회사 제거 (가장 최신 기사만 선택)
+        // 중복 회사 제거 (가장 최신 분석만 선택)
         const uniqueCompanies = new Map();
-        const filteredNews = [];
+        const filtered = [];
         
-        for (const article of allNews) {
-            const compName = article.company_name || 'Stock Alpha';
+        for (const item of allAnalysis) {
+            const compName = item.companies?.name || item.company_id;
             if (!uniqueCompanies.has(compName)) {
                 uniqueCompanies.set(compName, true);
-                filteredNews.push(article);
+                filtered.push(item);
             }
-            if (filteredNews.length === 6) break;
+            if (filtered.length === 6) break;
         }
 
         grid.innerHTML = '';
 
-        filteredNews.forEach(article => {
-            const date = new Date(article.published_at).toLocaleDateString('ko-KR', {
+        for (const item of filtered) {
+            const companyName = item.companies?.name || 'N/A';
+            const symbol = item.companies?.symbol || '';
+            const sent = (item.sentiment || 'neutral').toLowerCase();
+            const sentLabel = sentimentMap[sent] || '⚖️ 중립';
+            const sentCls = sentimentClass[sent] || 'neutral';
+            
+            // AI 분석 내용에서 처음 150자를 표시
+            let summary = item.analysis_content || '분석 내용을 불러올 수 없습니다.';
+            // Markdown 제거 (간단히)
+            summary = summary.replace(/[#*_~`>\[\]]/g, '').replace(/\n+/g, ' ').trim();
+            if (summary.length > 150) summary = summary.substring(0, 150) + '...';
+
+            const date = new Date(item.created_at).toLocaleDateString('ko-KR', {
                 year: 'numeric', month: 'short', day: 'numeric'
             });
 
-            const sourceHtml = article.source_url 
-                ? `<a href="${article.source_url}" target="_blank" class="source-link">${article.source_name || 'News Source'}</a>`
-                : `<span class="source-link">${article.source_name || 'News Source'}</span>`;
+            // 해당 회사의 최신 기사 ID를 찾아서 링크 연결
+            const newsQuery = `company_id=eq.${item.company_id}&order=published_at.desc&limit=1&select=id`;
+            const newsArticles = await sbGet('news_articles', newsQuery);
+            const newsId = newsArticles && newsArticles.length > 0 ? newsArticles[0].id : null;
+            const linkHref = newsId ? `news.html?id=${newsId}` : '#';
 
             const cardHtml = `
-                <div class="card" onclick="location.href='news.html?id=${article.id}'" style="cursor:pointer">
-                    <div class="company-name">${article.company_name || 'Stock Alpha'}</div>
-                    <h3>${article.title}</h3>
+                <div class="card" onclick="location.href='${linkHref}'" style="cursor:pointer">
+                    <div class="card-top-row">
+                        <div class="company-name">${companyName} (${symbol})</div>
+                        <span class="sentiment-badge ${sentCls}">${sentLabel}</span>
+                    </div>
                     <div class="divider"></div>
-                    <div class="summary">${article.snippet || article.content || '기사 요약 정보를 불러올 수 없습니다.'}</div>
+                    <div class="summary">${summary}</div>
                     <div class="card-footer">
-                        <div class="indicators">${sourceHtml}</div>
+                        <div class="indicators">🤖 AI 분석</div>
                         <div class="post-date">${date}</div>
                     </div>
                 </div>
             `;
             grid.insertAdjacentHTML('beforeend', cardHtml);
-        });
+        }
 
     } catch (err) {
         console.error('loadNews error:', err);
