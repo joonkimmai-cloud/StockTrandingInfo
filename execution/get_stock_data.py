@@ -29,13 +29,14 @@ def get_relative_volume_kr():
             recent_vol = df['Volume'].iloc[-1]
             rvol = recent_vol / avg_vol if avg_vol > 0 else 0
             
+            market = row.get('Market', 'KR')
             results.append({
                 'symbol': symbol,
                 'name': name,
                 'price': float(df['Close'].iloc[-1]),
                 'change': float((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100),
                 'rvol': float(rvol),
-                'market': 'KR',
+                'market': market,
                 'issued_shares': int(row.get('Stocks', 0)),
                 'marcap': int(row.get('Marcap', 0)),
                 'per': float(row.get('PER', 0)) if not pd.isna(row.get('PER')) else None,
@@ -68,7 +69,7 @@ def get_relative_volume_us():
                 'price': float(df['Close'].iloc[-1]),
                 'change': float((df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100),
                 'rvol': float(rvol),
-                'market': 'US',
+                'market': 'NASDAQ',
                 'issued_shares': None,
                 'marcap': None,
                 'per': None,

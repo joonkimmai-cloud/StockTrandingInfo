@@ -159,11 +159,11 @@ def build_html_template(data, news_data=None):
                     {data.get('market_summary', '데이터를 불러올 수 없습니다.')}
                 </div>
                 
-                <h2 class="section-title">KOREA - Top Relative Volume</h2>
-                {kr_html if kr_html else '<p>금일 특이 종목이 발견되지 않았습니다.</p>'}
+                <h2 class="section-title">🇰🇷 KOREA - Top Relative Volume</h2>
+                {kr_html if kr_html.strip() else '<p style="color: #888; text-align: center; padding: 20px;">대한민국 시장에서 금일 조건에 부합하는 종목이 발견되지 않았습니다.</p>'}
                 
-                <h2 class="section-title">USA - Top Relative Volume</h2>
-                {us_html if us_html else '<p>금일 특이 종목이 발견되지 않았습니다.</p>'}
+                <h2 class="section-title">🇺🇸 USA - Top Relative Volume</h2>
+                {us_html if us_html.strip() else '<p style="color: #888; text-align: center; padding: 20px;">미국 시장에서 금일 조건에 부합하는 종목이 발견되지 않았습니다.</p>'}
                 
                 <div class="prediction-box">
                     <h3 style="margin-top: 0; color: #2c3e50;">Tomorrow's Outlook & Strategy</h3>

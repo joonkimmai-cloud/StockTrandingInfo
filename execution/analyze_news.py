@@ -160,7 +160,7 @@ async def check_existing_analysis():
                     if len(data) > 0:
                         report_id = data[0]['id']
                         # 리포트가 발견되면, 연결된 종목 분석도 가져옴
-                        sa_url = f"{supabase_url}/rest/v1/stock_analysis?report_id=eq.{report_id}&select=*,companies(name)"
+                        sa_url = f"{supabase_url}/rest/v1/stock_analysis?report_id=eq.{report_id}&select=*,companies(name,market)"
                         async with session.get(sa_url, headers=headers) as sa_resp:
                             if sa_resp.status == 200:
                                 sa_data = await sa_resp.json()
@@ -174,15 +174,20 @@ async def check_existing_analysis():
                                     "us_analysis": []
                                 }
                                 for item in sa_data:
-                                    # 원본 데이터를 정확히 복원하긴 어렵지만, 이메일용으로 표시될 내용은 복원 가능
-                                    comp_name = item.get('companies', {}).get('name', '알수없음')
+                                    comp_data = item.get('companies', {})
+                                    comp_name = comp_data.get('name', '알수없음')
+                                    market = comp_data.get('market', 'KR')
+                                    
                                     analysis_obj = {
                                         "name": comp_name,
                                         "analysis": item.get('analysis_content', ''),
                                         "sentiment": item.get('sentiment', 'Neutral')
                                     }
-                                    # 여기서는 모두 kr_analysis 에 넣음 (구분이 모호하더라도 이메일 발송엔 문제 없음)
-                                    result["kr_analysis"].append(analysis_obj)
+                                    
+                                    if market in ['US', 'NASDAQ', 'NYSE']:
+                                        result["us_analysis"].append(analysis_obj)
+                                    else:
+                                        result["kr_analysis"].append(analysis_obj)
                                     
                                 return result
     except Exception as e:
