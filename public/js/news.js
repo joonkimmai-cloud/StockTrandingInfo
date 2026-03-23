@@ -132,6 +132,17 @@ async function renderDetail(id) {
         });
         document.getElementById('detail-source').innerText = a.source_name || 'News Source';
         
+        // 원문 링크 설정
+        const originalBtn = document.getElementById('detail-original-link');
+        const sourceNameBtn = document.getElementById('detail-source-name-btn');
+        if (a.source_url) {
+            originalBtn.href = a.source_url;
+            originalBtn.style.display = 'inline-flex';
+            sourceNameBtn.innerText = a.source_name || '원문';
+        } else {
+            originalBtn.style.display = 'none';
+        }
+        
         // Markdown 렌더링 적용 (본문 내용 우선, 없으면 요약 표시)
         const rawContent = a.content || a.snippet || '본문 내용이 없습니다.';
         if (typeof marked !== 'undefined') {
@@ -153,11 +164,18 @@ async function renderDetail(id) {
             const ana = analysisResults[0];
             const analysisHtml = typeof marked !== 'undefined' ? marked.parse(ana.analysis_content) : ana.analysis_content;
             aiBox.innerHTML = analysisHtml;
-            sentimentTag.innerText = ana.sentiment || 'Neutral';
-            sentimentTag.style.display = 'block';
+            
+            // 감성 텍스트 한글 변환
+            const sentimentMap = {
+                'bullish': '📈 상승 우세',
+                'bearish': '📉 하락 주의',
+                'neutral': '⚖️ 중립'
+            };
+            const sent = (ana.sentiment || 'neutral').toLowerCase();
+            sentimentTag.innerText = sentimentMap[sent] || '중립';
+            sentimentTag.style.display = 'inline-block';
             
             // 감성 색상 지정
-            const sent = (ana.sentiment || 'neutral').toLowerCase();
             sentimentTag.className = `sentiment-tag ${sent}`;
         } else {
             aiBox.innerHTML = "이 종목에 대한 최신 분석 데이터가 없습니다.<br><br>일일 종목 분석 보고서 생성을 기다려주세요.";

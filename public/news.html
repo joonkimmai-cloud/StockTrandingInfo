@@ -66,17 +66,24 @@
                 <div class="detail-body">
                     <!-- AI 섹션을 상단으로 이동하여 강조 -->
                     <div class="ai-section">
-                        <div class="section-label ai-label">🤖 AI 투자 인사이트 분석</div>
+                        <div class="section-label-row ai-label-row">
+                            <div class="section-label ai-label">🤖 AI 투자 인사이트 분석</div>
+                            <div id="ai-sentiment" class="sentiment-tag" style="display:none;">중립</div>
+                        </div>
                         <div class="ai-card">
                             <div id="ai-content" class="ai-text">
                                 해당 종목에 대한 AI 분석 데이터를 조회하고 있습니다...
                             </div>
-                            <div id="ai-sentiment" class="sentiment-tag" style="display:none;">Neutral</div>
                         </div>
                     </div>
 
                     <div class="article-section">
-                        <div class="section-label">기사 본문 및 분석 요약</div>
+                        <div class="section-label-row">
+                            <div class="section-label">기사 본문 및 분석 요약</div>
+                            <a id="detail-original-link" href="#" target="_blank" class="btn-source">
+                                <span id="detail-source-name-btn">원문</span> 보기 ↗
+                            </a>
+                        </div>
                         <div id="detail-content" class="article-text">
                             기사 내용을 불러오는 중입니다...
                         </div>
