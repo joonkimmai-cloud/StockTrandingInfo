@@ -16,17 +16,41 @@ from markdownify import markdownify as md
 
 load_dotenv()
 
+async def resolve_google_news_url(session, url):
+    """Google News 리다이렉트 URL을 실제 기사 URL로 변환합니다."""
+    if 'news.google.com' not in url:
+        return url
+    try:
+        # allow_redirects=True로 실제 목적지 URL을 가져옴
+        # 일부 뉴스 사이트는 HEAD 요청을 거부할 수 있으므로 GET을 사용
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
+        async with session.get(url, headers=headers, allow_redirects=True, timeout=10) as resp:
+            target = str(resp.url)
+            print(f"  [Info] Resolved Google News -> {target}")
+            return target
+    except Exception as e:
+        print(f"  [Warning] URL resolution failed for {url}: {e}")
+        return url
+
 async def fetch_full_content(session, url):
     """기사 URL에서 본문 내용을 가져와 Markdown으로 변환합니다."""
-    if not url or url == '#' or 'news.google.com' in url: 
+    if not url or url == '#': 
         return ""
     
+    # Google News 리다이렉트 해제
+    target_url = await resolve_google_news_url(session, url)
+    
     try:
-        # User-Agent 설정 (일부 사이트 차단 방지)
+        # 현실적인 브라우저 헤더 설정 (차단 방지)
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Referer": "https://www.google.com/"
         }
-        async with session.get(url, headers=headers, timeout=10) as response:
+        async with session.get(target_url, headers=headers, timeout=15) as response:
             if response.status == 200:
                 html = await response.text()
                 # trafilatura를 사용하여 본문 추출
@@ -35,9 +59,10 @@ async def fetch_full_content(session, url):
                     # trafilatura 실패 시 markdownify로 대체 시도
                     content = md(html, strip=['script', 'style', 'nav', 'header', 'footer'])
                 return content if content else ""
+            else:
+                print(f"  [Error] HTTP {response.status} for {target_url}")
     except Exception as e:
-        # print(f"  [Error] Content fetch failed for {url}: {e}")
-        pass
+        print(f"  [Error] Content fetch failed for {target_url}: {e}")
     return ""
 
 async def check_existing_news(session, symbol, all_db_companies):
