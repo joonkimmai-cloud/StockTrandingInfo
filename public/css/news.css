@@ -231,6 +231,10 @@
     margin-bottom: 12px;
 }
 
+.section-label-row .section-label {
+    margin-bottom: 0;
+}
+
 .sentiment-tag {
     display: inline-block;
     font-size: 14px;

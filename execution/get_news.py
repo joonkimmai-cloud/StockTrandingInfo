@@ -133,8 +133,11 @@ async def fetch_news_for_stock(session, stock, all_db_companies):
         "tbm": "nws",
         "tbs": "qdr:d", # 지난 24시간 이내 기사만 수집 (오전 7:30 실행 기준 전일 7:30~오늘 7:29)
         "api_key": serpapi_key,
-        "num": "5" # 가져올 뉴스 기사 최대 개수
+        "num": "10" # 필터링 후 충분한 기사 확보를 위해 넉넉히 검색
     }
+    
+    # 본문 수집이 불가능한 출처 목록 (403 차단 등)
+    BLOCKED_SOURCES = ['investing.com']
     
     try:
         print(f"  [2단계] {name}({symbol}) 뉴스 수집 중 (SerpApi 사용)...")
@@ -149,15 +152,22 @@ async def fetch_news_for_stock(session, stock, all_db_companies):
             if 'news_results' in data:
                 # 1단계: 기본 뉴스 정보 수집
                 temp_articles = []
-                for item in data['news_results'][:4]:
+                for item in data['news_results']:
+                    source = item.get('source', 'Google News')
+                    # 차단된 출처 건너뛰기
+                    if any(blocked in source.lower() for blocked in BLOCKED_SOURCES):
+                        print(f"    - [Skip] 차단 출처: {source}")
+                        continue
                     temp_articles.append({
                         'title': item.get('title', '제목 없음'),
                         'url': item.get('link', '#'),
-                        'source': item.get('source', 'Google News'),
+                        'source': source,
                         'timestamp': item.get('date', datetime.now(KST).isoformat()),
                         'snippet': item.get('snippet', ''),
                         'thumbnail_url': item.get('thumbnail', '')
                     })
+                    if len(temp_articles) >= 4:  # 최대 4개까지만 수집
+                        break
                 
                 # 2단계: 각 기사별 본문 전체 내용 수집 (병렬 비동기 처리)
                 if temp_articles:
