@@ -23,10 +23,11 @@ CREATE TABLE IF NOT EXISTS public.news_articles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Create table for subscribers (existing)
+-- Create table for subscribers (updated with is_active)
 CREATE TABLE IF NOT EXISTS public.subscribers (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
+    is_active BOOLEAN DEFAULT true, -- 구독 활성화 여부
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

@@ -128,8 +128,7 @@ def main():
     
     steps = [
         ('execution/get_stock_data.py', 'Data Collection'),
-        ('execution/get_news.py', 'News Scraping'),
-        ('execution/analyze_news.py', 'AI Analysis'),
+        ('execution/get_news_and_analyze.py', 'News & AI Analysis'),
         ('execution/save_to_db.py', 'DB Sync'),
         ('execution/send_email_report.py', 'Email Dispatch')
     ]
@@ -147,7 +146,7 @@ def main():
         else:
             fail_count += 1
             all_summary.append(f"{name}: FAILED")
-            if name in ['Data Collection', 'News Scraping', 'AI Analysis']: # Critical steps
+            if name in ['Data Collection', 'News & AI Analysis']: # Critical steps
                 final_status = "FAIL"
                 break
             else:

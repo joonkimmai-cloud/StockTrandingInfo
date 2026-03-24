@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 
 import trafilatura
 from markdownify import markdownify as md
+import xml.etree.ElementTree as ET
+import html
 
 load_dotenv()
 
@@ -65,6 +67,41 @@ async def fetch_full_content(session, url):
         print(f"  [Error] Content fetch failed for {target_url}: {e}")
     return ""
 
+async def fetch_naver_rss(session, query):
+    """네이버 뉴스 검색 RSS를 통해 뉴스를 수집합니다."""
+    # sort=1 (최신순), pd=4 (24시간)
+    rss_url = f"https://search.naver.com/search.naver?where=news&query={query}&sm=tab_pge&sort=1&photo=0&field=0&pd=4&rss=1"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+    articles = []
+    try:
+        async with session.get(rss_url, headers=headers, timeout=10) as resp:
+            if resp.status == 200:
+                text = await resp.text()
+                root = ET.fromstring(text)
+                for item in root.findall(".//item")[:10]:
+                    title = item.find("title").text if item.find("title") is not None else ""
+                    link = item.find("link").text if item.find("link") is not None else ""
+                    description = item.find("description").text if item.find("description") is not None else ""
+                    pubDate = item.find("pubDate").text if item.find("pubDate") is not None else ""
+                    
+                    # HTML 엔티티 제거 및 태그 제거
+                    title = html.unescape(title).replace("<b>", "").replace("</b>", "")
+                    description = html.unescape(description).replace("<b>", "").replace("</b>", "")
+                    
+                    articles.append({
+                        'title': title,
+                        'url': link,
+                        'source': 'Naver News',
+                        'timestamp': pubDate,
+                        'snippet': description,
+                        'thumbnail_url': ''
+                    })
+    except Exception as e:
+        print(f"  [Warning] Naver RSS fetch failed: {e}")
+    return articles
+
 async def check_existing_news(session, symbol, all_db_companies):
     today = datetime.now(KST).strftime('%Y-%m-%d')
     company = next((c for c in all_db_companies if c['symbol'] == symbol), None)
@@ -108,76 +145,90 @@ async def fetch_news_for_stock(session, stock, all_db_companies):
     # 주식 정보 추출
     symbol = stock.get('symbol', 'UNKNOWN')
     name = stock.get('name', 'UNKNOWN')
-    # DB 검사 (오늘 가져온 뉴스가 있으면 패스)
-    existing = await check_existing_news(session, symbol, all_db_companies)
-    if existing and existing.get("is_cached"):
-        articles = existing["articles"]
-        return {
-            **stock,
-            'news': articles,
-            'news_status': 'success' if articles else 'no_news_found',
-            'period': 'DB Cached'
-        }
+    # DB 검사 (오늘 가�    articles = []
+    fetch_source = "None"
 
-    # 없으면 SerpApi 키 가져오기 (.env 파일에 저장된 값)
-    serpapi_key = os.getenv("SERPAPI_API_KEY")
-    if not serpapi_key:
-        print(f"Error: SERPAPI_API_KEY is not set.")
-        return {**stock, 'news': [{"title": "API Key Error", "url": "#", "source": "System", "snippet": "SERPAPI_API_KEY가 설정되지 않았습니다."}], "news_status": "error"}
-        
-    query = f"{name} {symbol} 주식 뉴스"
-    
-    params = {
-        "engine": "google",
-        "q": query,
-        "tbm": "nws",
-        "tbs": "qdr:d", # 지난 24시간 이내 기사만 수집 (오전 7:30 실행 기준 전일 7:30~오늘 7:29)
-        "api_key": serpapi_key,
-        "num": "10" # 필터링 후 충분한 기사 확보를 위해 넉넉히 검색
-    }
-    
-    # 본문 수집이 불가능한 출처 목록 (403 차단 등)
-    BLOCKED_SOURCES = ['investing.com']
-    
-    try:
-        print(f"  [2단계] {name}({symbol}) 뉴스 수집 중 (SerpApi 사용)...")
-        async with session.get("https://serpapi.com/search", params=params) as response:
-            if response.status != 200:
-                print(f"Error fetching news for {symbol}: HTTP {response.status}")
-                return {**stock, 'news': [{"title": "API Request Error", "url": "#", "source": "System", "snippet": f"HTTP {response.status}", "thumbnail_url": ""}], "news_status": "error"}
+    # KR 시장인 경우 네이버 RSS 먼저 시도
+    market = stock.get('market', 'KR')
+    if market in ['KOSPI', 'KOSDAQ', 'KR']:
+        print(f"  [2단계] {name}({symbol}) 뉴스 수집 중 (Naver RSS 사용)...")
+        articles = await fetch_naver_rss(session, f"{name} {symbol}")
+        if articles:
+            fetch_source = "Naver RSS"
 
-            data = await response.json()
+    # 네이버 결과가 없거나 US 시장인 경우 SerpApi 사용
+    if not articles:
+        # 없으면 SerpApi 키 가져오기 (.env 파일에 저장된 값)
+        serpapi_key = os.getenv("SERPAPI_API_KEY")
+        if not serpapi_key:
+            if market in ['KOSPI', 'KOSDAQ', 'KR'] and not articles:
+                 return {**stock, 'news': [{"title": "정보 없음", "url": "#", "source": "System", "snippet": "뉴스를 찾을 수 없습니다."}], "news_status": "no_news_found"}
+            print(f"Error: SERPAPI_API_KEY is not set.")
+            return {**stock, 'news': [{"title": "API Key Error", "url": "#", "source": "System", "snippet": "SERPAPI_API_KEY가 설정되지 않았습니다."}], "news_status": "error"}
             
-            articles = []
-            if 'news_results' in data:
-                # 1단계: 기본 뉴스 정보 수집
-                temp_articles = []
-                for item in data['news_results']:
-                    source = item.get('source', 'Google News')
-                    # 차단된 출처 건너뛰기
-                    if any(blocked in source.lower() for blocked in BLOCKED_SOURCES):
-                        print(f"    - [Skip] 차단 출처: {source}")
-                        continue
-                    temp_articles.append({
-                        'title': item.get('title', '제목 없음'),
-                        'url': item.get('link', '#'),
-                        'source': source,
-                        'timestamp': item.get('date', datetime.now(KST).isoformat()),
-                        'snippet': item.get('snippet', ''),
-                        'thumbnail_url': item.get('thumbnail', '')
-                    })
-                    if len(temp_articles) >= 4:  # 최대 4개까지만 수집
-                        break
-                
-                # 2단계: 각 기사별 본문 전체 내용 수집 (병렬 비동기 처리)
-                if temp_articles:
-                    print(f"    - {name}({symbol}) 본문(MD) 수집 중...")
-                    content_tasks = [fetch_full_content(session, a['url']) for a in temp_articles]
-                    contents = await asyncio.gather(*content_tasks)
-                    
-                    for i, a in enumerate(temp_articles):
-                        # 본문이 수집되면 content에 저장, 실패 시 snippet으로 대체
-                        a['content'] = contents[i] if contents[i] else a.get('snippet', '')
+        query = f"{name} {symbol} 주식 뉴스"
+        params = {
+            "engine": "google",
+            "q": query,
+            "tbm": "nws",
+            "tbs": "qdr:d",
+            "api_key": serpapi_key,
+            "num": "10"
+        }
+        
+        BLOCKED_SOURCES = ['investing.com']
+        
+        try:
+            print(f"  [2단계] {name}({symbol}) 뉴스 수집 중 (SerpApi 사용)...")
+            async with session.get("https://serpapi.com/search", params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if 'news_results' in data:
+                        for item in data['news_results']:
+                            source = item.get('source', 'Google News')
+                            if any(blocked in source.lower() for blocked in BLOCKED_SOURCES):
+                                continue
+                            articles.append({
+                                'title': item.get('title', '제목 없음'),
+                                'url': item.get('link', '#'),
+                                'source': source,
+                                'timestamp': item.get('date', datetime.now(KST).isoformat()),
+                                'snippet': item.get('snippet', ''),
+                                'thumbnail_url': item.get('thumbnail', '')
+                            })
+                            if len(articles) >= 4: break
+                        if articles: fetch_source = "SerpApi"
+        except Exception as e:
+            print(f"Error scraping news via SerpApi for {symbol}: {e}")
+
+    # 공통: 본문 수집 (상위 4개만)
+    final_articles = []
+    if articles:
+        selected_articles = articles[:4]
+        print(f"    - {name}({symbol}) 본문(MD) 수집 중... (Source: {fetch_source})")
+        content_tasks = [fetch_full_content(session, a['url']) for a in selected_articles]
+        contents = await asyncio.gather(*content_tasks)
+        
+        for i, a in enumerate(selected_articles):
+            a['content'] = contents[i] if contents[i] else a.get('snippet', '')
+            final_articles.append(a)
+    
+    status = "success" if final_articles else "no_news_found"
+    if not final_articles:
+        final_articles = [{
+            "title": "** 관련 기사 및 공시 없음", 
+            "url": "#", 
+            "source": "N/A", 
+            "snippet": "", 
+            "thumbnail_url": ""
+        }]
+        
+    return {
+        **stock,
+        'news': final_articles,
+        'news_status': status,
+        'period': fetch_source
+    }ppet', '')
                         articles.append(a)
                     
             status = "success" if articles else "no_news_found"
