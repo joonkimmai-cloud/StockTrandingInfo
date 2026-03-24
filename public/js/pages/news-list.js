@@ -5,10 +5,16 @@ const PAGE_SIZE = 15;
 export async function renderNewsList(container, supabase) {
     // 1. 초기 뼈대 그리기
     container.innerHTML = `
-        <div class="page-header">
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-end;">
             <div>
                 <h1 class="page-title">Scraped News List</h1>
-                <p class="page-desc" id="news-count-text">최근 수집된 뉴스 기사 목록입니다. 클릭하면 상세 내용을 확인하실 수 있습니다.</p>
+                <p class="page-desc" id="news-count-text">최근 수집된 뉴스 기사 목록입니다.</p>
+            </div>
+            <div class="page-header-actions">
+                <div class="search-container">
+                    <input type="text" id="news-search-input" class="search-input" placeholder="뉴스 제목, 기업명 검색...">
+                    <button id="news-search-btn" class="search-btn">🔍</button>
+                </div>
             </div>
         </div>
         <div class="card">
@@ -31,28 +37,36 @@ export async function renderNewsList(container, supabase) {
     `;
 
     let currentPage = 0;
+    let currentQuery = '';
     
-    // 전체 개수 가져와서 상단에 표시
-    const { count: totalCount } = await supabase
-        .from('news_articles')
-        .select('*', { count: 'exact', head: true });
-    
-    document.getElementById('news-count-text').innerText = `최근 수집된 뉴스 기사 목록입니다. (총 ${totalCount || 0}건)`;
-
     // 실제 데이터 한 페이지씩 불러오는 함수
-    async function loadPage(page) {
+    async function loadPage(page, query = currentQuery) {
         currentPage = page;
+        currentQuery = query;
         const from = page * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
         const tbody = document.getElementById('list-body');
+        if (!tbody) return;
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px;">불러오는 중...</td></tr>`;
 
-        const { data, error } = await supabase
-            .from('news_articles')
-            .select('*')
+        let q = supabase.from('news_articles').select('*', { count: 'exact' });
+        
+        if (query) {
+            q = q.or(`title.ilike.*${query}*,company_name.ilike.*${query}*,source_name.ilike.*${query}*`);
+        }
+
+        const { data, count, error } = await q
             .order('created_at', { ascending: false })
             .range(from, to);
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red; padding:20px;">데이터를 불러오지 못했습니다: ${error.message}</td></tr>`;
+            return;
+        }
+
+        const totalCount = count || 0;
+        document.getElementById('news-count-text').innerText = `최근 수집된 뉴스 기사 목록입니다. (총 ${totalCount}건${query ? ' 검색됨' : ''})`;
 
         if (error) {
             tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:red; padding:20px;">데이터를 불러오지 못했습니다: ${error.message}</td></tr>`;
@@ -88,8 +102,21 @@ export async function renderNewsList(container, supabase) {
         });
 
         // 하단 페이지 번호 그리기
-        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, (p) => loadPage(p));
+        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, (p) => loadPage(p, currentQuery));
     }
+
+    // 검색 이벤트 바인딩
+    const searchInput = document.getElementById('news-search-input');
+    const searchBtn = document.getElementById('news-search-btn');
+
+    const handleSearch = () => {
+        loadPage(0, searchInput.value.trim());
+    };
+
+    searchBtn.addEventListener('click', handleSearch);
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSearch();
+    });
 
     // 첫 페이지 호출
     loadPage(0);

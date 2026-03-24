@@ -28,19 +28,18 @@ function translateSentiment(raw) {
 }
 
 export async function renderAnalysisResults(container, supabase) {
-    let currentPage = 0;
-
-    // AI 분석 건수
-    const { count } = await supabase
-        .from('stock_analysis')
-        .select('*', { count: 'exact', head: true });
-
-    const totalCount = count || 0;
-
     container.innerHTML = `
-        <div class="page-header">
-            <h1 class="page-title">Analysis Results (AI 분석 결과)</h1>
-            <p class="page-desc">AI가 분석한 종목별 투자 의견 및 시장 요약입니다. (총 ${totalCount}개)</p>
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div>
+                <h1 class="page-title">Analysis Results</h1>
+                <p class="page-desc" id="analysis-count-text">AI가 분석한 종목별 투자 의견입니다.</p>
+            </div>
+            <div class="page-header-actions">
+                <div class="search-container">
+                    <input type="text" id="analysis-search-input" class="search-input" placeholder="분석 내용, 기업명, 의견 검색...">
+                    <button id="analysis-search-btn" class="search-btn">🔍</button>
+                </div>
+            </div>
         </div>
         <div id="market-report-section"></div>
         <div class="card">
@@ -81,20 +80,36 @@ export async function renderAnalysisResults(container, supabase) {
         `;
     }
 
-    async function loadPage(page) {
+    let currentQuery = '';
+    async function loadPage(page, query = currentQuery) {
         currentPage = page;
+        currentQuery = query;
         const from = page * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
-        const { data } = await supabase
-            .from('stock_analysis')
-            .select('*, companies (name, symbol)')
-            .order('created_at', { ascending: false })
-            .order('id', { ascending: false }) // 날짜가 같을 경우 최신 ID순으로 정렬
-            .range(from, to);
-
         const tbody = document.getElementById('list-body');
         if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px;">불러오는 중...</td></tr>';
+
+        // !inner join is used to allow filtering by joined table fields
+        let q = supabase.from('stock_analysis').select('*, companies!inner(name, symbol)', { count: 'exact' });
+        
+        if (query) {
+            q = q.or(`sentiment.ilike.*${query}*,analysis_content.ilike.*${query}*,companies.name.ilike.*${query}*,companies.symbol.ilike.*${query}*`);
+        }
+
+        const { data, count, error } = await q
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: false })
+            .range(from, to);
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:red;">에러: ${error.message}</td></tr>`;
+            return;
+        }
+
+        const totalCount = count || 0;
+        document.getElementById('analysis-count-text').innerText = `AI가 분석한 종목별 투자 의견입니다. (총 ${totalCount}개${query ? ' 검색됨' : ''})`;
 
         if (data && data.length > 0) {
             tbody.innerHTML = data.map((item, i) => {
@@ -125,8 +140,21 @@ export async function renderAnalysisResults(container, supabase) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px;">아직 생성된 AI 분석 데이터가 없습니다.</td></tr>';
         }
 
-        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, loadPage);
+        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, (p) => loadPage(p, currentQuery));
     }
+
+    // 검색 이벤트 바인딩
+    const searchInput = document.getElementById('analysis-search-input');
+    const searchBtn = document.getElementById('analysis-search-btn');
+
+    const handleSearch = () => {
+        loadPage(0, searchInput.value.trim());
+    };
+
+    searchBtn.addEventListener('click', handleSearch);
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSearch();
+    });
 
     await loadPage(0);
 }

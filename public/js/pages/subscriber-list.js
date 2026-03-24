@@ -4,17 +4,20 @@ const PAGE_SIZE = 15;
 
 export async function renderSubscriberList(contentEl, supabaseClient) {
     let currentPage = 0;
-
-    const { count } = await supabaseClient
-        .from('subscribers')
-        .select('*', { count: 'exact', head: true });
-
-    const totalCount = count || 0;
+    let currentQuery = '';
 
     contentEl.innerHTML = `
-        <div class="page-header">
-            <h1 class="page-title">Subscribers (구독자 관리)</h1>
-            <p class="page-desc">아침 6시 주식 뉴스레터를 받는 사람들의 정보입니다. (총 ${totalCount}명)</p>
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div>
+                <h1 class="page-title">Subscribers</h1>
+                <p class="page-desc" id="sub-count-text">뉴스레터 구독자 명단입니다.</p>
+            </div>
+            <div class="page-header-actions">
+                <div class="search-container">
+                    <input type="text" id="sub-search-input" class="search-input" placeholder="이메일 주소 검색...">
+                    <button id="sub-search-btn" class="search-btn">🔍</button>
+                </div>
+            </div>
         </div>
         <div class="card">
             <table>
@@ -32,19 +35,33 @@ export async function renderSubscriberList(contentEl, supabaseClient) {
         </div>
     `;
 
-    async function loadPage(page) {
+    async function loadPage(page, query = currentQuery) {
         currentPage = page;
+        currentQuery = query;
         const from = page * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
-        const { data, error } = await supabaseClient
-            .from('subscribers')
-            .select('*')
+        const tbody = document.getElementById('list-body');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">불러오는 중...</td></tr>';
+
+        let q = supabaseClient.from('subscribers').select('*', { count: 'exact' });
+        
+        if (query) {
+            q = q.ilike('email', `%${query}%`);
+        }
+
+        const { data, count, error } = await q
             .order('created_at', { ascending: false })
             .range(from, to);
 
-        const tbody = document.getElementById('list-body');
-        if (!tbody) return;
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:30px; color:red;">에러: ${error.message}</td></tr>`;
+            return;
+        }
+
+        const totalCount = count || 0;
+        document.getElementById('sub-count-text').innerText = `뉴스레터 구독자 명단입니다. (총 ${totalCount}명${query ? ' 검색됨' : ''})`;
 
         if (data && data.length > 0) {
             tbody.innerHTML = data.map((row, i) => {
@@ -92,8 +109,21 @@ export async function renderSubscriberList(contentEl, supabaseClient) {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;">현재 구독자가 없습니다.</td></tr>';
         }
 
-        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, loadPage);
+        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, (p) => loadPage(p, currentQuery));
     }
+
+    // 검색 이벤트 바인딩
+    const searchInput = document.getElementById('sub-search-input');
+    const searchBtn = document.getElementById('sub-search-btn');
+
+    const handleSearch = () => {
+        loadPage(0, searchInput.value.trim());
+    };
+
+    searchBtn.addEventListener('click', handleSearch);
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSearch();
+    });
 
     await loadPage(0);
 }

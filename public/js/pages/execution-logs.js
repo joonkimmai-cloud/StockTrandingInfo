@@ -4,17 +4,20 @@ const PAGE_SIZE = 15;
 
 export async function renderExecutionLogs(contentEl, supabaseClient) {
     let currentPage = 0;
-
-    const { count } = await supabaseClient
-        .from('execution_logs')
-        .select('*', { count: 'exact', head: true });
-
-    const totalCount = count || 0;
+    let currentQuery = '';
 
     contentEl.innerHTML = `
-        <div class="page-header">
-            <h1 class="page-title">Execution Logs (실행 로그 관리)</h1>
-            <p class="page-desc">자동 작업(Batch)이 진행되는 과정에서의 주요 단계별 기록(로그)을 확인할 수 있습니다. (총 ${totalCount}개)</p>
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div>
+                <h1 class="page-title">Execution Logs</h1>
+                <p class="page-desc" id="logs-count-text">자동 작업 단계별 기록입니다.</p>
+            </div>
+            <div class="page-header-actions">
+                <div class="search-container">
+                    <input type="text" id="logs-search-input" class="search-input" placeholder="단계명, 상태, 메시지 검색...">
+                    <button id="logs-search-btn" class="search-btn">🔍</button>
+                </div>
+            </div>
         </div>
         <div class="card">
             <table>
@@ -33,19 +36,33 @@ export async function renderExecutionLogs(contentEl, supabaseClient) {
         </div>
     `;
 
-    async function loadPage(page) {
+    async function loadPage(page, query = currentQuery) {
         currentPage = page;
+        currentQuery = query;
         const from = page * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
-        const { data } = await supabaseClient
-            .from('execution_logs')
-            .select('*')
+        const tbody = document.getElementById('list-body');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px;">불러오는 중...</td></tr>';
+
+        let q = supabaseClient.from('execution_logs').select('*', { count: 'exact' });
+        
+        if (query) {
+            q = q.or(`step_name.ilike.*${query}*,status.ilike.*${query}*,log_message.ilike.*${query}*`);
+        }
+
+        const { data, count, error } = await q
             .order('created_at', { ascending: false })
             .range(from, to);
 
-        const tbody = document.getElementById('list-body');
-        if (!tbody) return;
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:red;">에러: ${error.message}</td></tr>`;
+            return;
+        }
+
+        const totalCount = count || 0;
+        document.getElementById('logs-count-text').innerText = `자동 작업 단계별 기록입니다. (총 ${totalCount}개${query ? ' 검색됨' : ''})`;
 
         if (data && data.length > 0) {
             tbody.innerHTML = data.map((row, i) => {
@@ -64,8 +81,21 @@ export async function renderExecutionLogs(contentEl, supabaseClient) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px;">No logs available (로그가 없습니다.)</td></tr>';
         }
 
-        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, loadPage);
+        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, (p) => loadPage(p, currentQuery));
     }
+
+    // 검색 이벤트 바인딩
+    const searchInput = document.getElementById('logs-search-input');
+    const searchBtn = document.getElementById('logs-search-btn');
+
+    const handleSearch = () => {
+        loadPage(0, searchInput.value.trim());
+    };
+
+    searchBtn.addEventListener('click', handleSearch);
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSearch();
+    });
 
     await loadPage(0);
 }

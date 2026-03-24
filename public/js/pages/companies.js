@@ -4,18 +4,20 @@ const PAGE_SIZE = 15;
 
 export async function renderCompanies(contentEl, supabaseClient) {
     let currentPage = 0;
-
-    // 1. 전체 건수 먼저 조회
-    const { count } = await supabaseClient
-        .from('companies')
-        .select('*', { count: 'exact', head: true });
-
-    const totalCount = count || 0;
+    let currentQuery = '';
 
     contentEl.innerHTML = `
-        <div class="page-header">
-            <h1 class="page-title">Collected Companies (수집된 주식 시장 회사들)</h1>
-            <p class="page-desc">현재 우리 시스템이 예의주시하며 수집 중인 기업들의 목록 및 주요 수치입니다. (총 ${totalCount}개)</p>
+        <div class="page-header" style="display:flex; justify-content:space-between; align-items:flex-end;">
+            <div>
+                <h1 class="page-title">Collected Companies</h1>
+                <p class="page-desc" id="total-count-desc">수집된 기업 목록입니다.</p>
+            </div>
+            <div class="page-header-actions">
+                <div class="search-container">
+                    <input type="text" id="company-search-input" class="search-input" placeholder="심볼, 기업명, 업종 검색...">
+                    <button id="company-search-btn" class="search-btn">🔍</button>
+                </div>
+            </div>
         </div>
         <div class="card">
             <table>
@@ -36,19 +38,33 @@ export async function renderCompanies(contentEl, supabaseClient) {
         </div>
     `;
 
-    async function loadPage(page) {
+    async function loadPage(page, query = currentQuery) {
         currentPage = page;
+        currentQuery = query;
         const from = page * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
 
-        const { data } = await supabaseClient
-            .from('companies')
-            .select('*')
+        const tbody = document.getElementById('list-body');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">불러오는 중...</td></tr>';
+
+        let q = supabaseClient.from('companies').select('*', { count: 'exact' });
+        
+        if (query) {
+            q = q.or(`symbol.ilike.*${query}*,name.ilike.*${query}*,sector.ilike.*${query}*,industry.ilike.*${query}*`);
+        }
+
+        const { data, count, error } = await q
             .order('updated_at', { ascending: false })
             .range(from, to);
 
-        const tbody = document.getElementById('list-body');
-        if (!tbody) return;
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:red;">에러: ${error.message}</td></tr>`;
+            return;
+        }
+
+        const totalCount = count || 0;
+        document.getElementById('total-count-desc').innerText = `수집된 기업 목록입니다. (총 ${totalCount}개${query ? ' 검색됨' : ''})`;
 
         if (data && data.length > 0) {
             tbody.innerHTML = data.map((row, i) => {
@@ -68,11 +84,24 @@ export async function renderCompanies(contentEl, supabaseClient) {
                 </tr>`;
             }).join('');
         } else {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">수집된 데이터가 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px;">결과가 없습니다.</td></tr>';
         }
 
-        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, loadPage);
+        renderPagination('pagination-container', currentPage, totalCount, PAGE_SIZE, (p) => loadPage(p, currentQuery));
     }
+
+    // 검색 이벤트 바인딩
+    const searchInput = document.getElementById('company-search-input');
+    const searchBtn = document.getElementById('company-search-btn');
+
+    const handleSearch = () => {
+        loadPage(0, searchInput.value.trim());
+    };
+
+    searchBtn.addEventListener('click', handleSearch);
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSearch();
+    });
 
     await loadPage(0);
 
