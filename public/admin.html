@@ -60,8 +60,12 @@
                 Admin (관리자) > <span id="nav-path">Monitoring</span>
             </div>
 
-            <!-- 로그아웃 (나가기) 버튼 -->
-            <div>
+            <!-- 메인 페이지 이동 및 로그아웃 버튼 -->
+            <div style="display: flex; gap: 10px;">
+                <button onclick="location.href='index.html'" class="btn-blue"
+                    style="background:#fff; color:var(--primary-blue); border: 1px solid var(--primary-blue);">
+                    메인 페이지 (Main Page)
+                </button>
                 <button id="logout-btn" class="btn-blue"
                     style="background:#f0f0f0; color:#333; border: 1px solid #ddd;">
                     로그아웃 (Logout)
@@ -127,6 +131,22 @@
             <div class="modal-footer">
                 <a id="news-modal-link" href="#" target="_blank" class="btn-blue" style="text-decoration:none; display:inline-block; text-align:center;">원문 기사 보기</a>
                 <button id="close-news-modal-btn" class="btn-blue" style="background:#f0f0f0; color:#333; border:1px solid #ddd;">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 기업 상세 정보 모달 -->
+    <div id="company-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 800px; width: 90%;">
+            <div class="modal-header">
+                <h2 id="company-modal-title" style="margin:0; font-size:1.4rem;">Company Detail</h2>
+                <button id="close-company-modal-x" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="company-modal-body" style="padding:10px 0; max-height: 80vh; overflow-y: auto;">
+                <!-- 상세 정보가 동적으로 주입될 자리 -->
+            </div>
+            <div class="modal-footer">
+                <button id="close-company-modal-btn" class="btn-blue" style="background:#f0f0f0; color:#333; border:1px solid #ddd;">닫기</button>
             </div>
         </div>
     </div>

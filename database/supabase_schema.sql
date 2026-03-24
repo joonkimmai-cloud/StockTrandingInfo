@@ -1,13 +1,23 @@
--- Create table for companies
 CREATE TABLE IF NOT EXISTS public.companies (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL,
     symbol TEXT NOT NULL UNIQUE,
     market TEXT NOT NULL, -- 'KR' or 'US'
+    sector TEXT, -- 업종
+    industry TEXT, -- 산업
+    business_summary TEXT, -- 사업 요약
     issued_shares BIGINT, -- 발행주식 정보
     marcap BIGINT, -- 시가총액
     per NUMERIC, -- 주가수익비율
     pbr NUMERIC, -- 주가순자산비율
+    revenue BIGINT, -- 매출 (Total Revenue)
+    operating_margins NUMERIC, -- 영업이익률
+    net_income BIGINT, -- 당기순이익
+    website TEXT, -- 웹사이트
+    city TEXT, -- 위치(도시)
+    ceo TEXT, -- 대표자
+    founded_date TEXT, -- 설립일
+    listing_date TEXT, -- 상장일
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

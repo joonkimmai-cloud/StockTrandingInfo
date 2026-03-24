@@ -36,7 +36,8 @@ def fetch_single_kr_stock(row):
             'issued_shares': int(row.get('Stocks', 0)) if not pd.isna(row.get('Stocks')) else None,
             'marcap': int(row.get('Marcap', 0)) if not pd.isna(row.get('Marcap')) else None,
             'per': float(row.get('PER', 0)) if not pd.isna(row.get('PER')) else None,
-            'pbr': float(row.get('PBR', 0)) if not pd.isna(row.get('PBR')) else None
+            'pbr': float(row.get('PBR', 0)) if not pd.isna(row.get('PBR')) else None,
+            'listing_date': str(row.get('ListingDate'))[:10] if not pd.isna(row.get('ListingDate')) else None
         }
     except:
         return None
@@ -126,8 +127,27 @@ def fetch_additional_info(stock):
         if target_price and current_price and current_price > 0:
             expected_return = ((target_price - current_price) / current_price) * 100
             
+        officers = info.get('companyOfficers', [])
+        ceo = next((o['name'] for o in officers if 'Chief Executive Officer' in (o.get('title') or '')), None)
+        if not ceo and officers: ceo = officers[0].get('name')
+        
+        founded = info.get('founded')
+        list_date = stock.get('listing_date')
+        if not list_date and 'firstTradeDateEpochUtc' in info:
+            list_date = datetime.fromtimestamp(info['firstTradeDateEpochUtc'], KST).strftime('%Y-%m-%d')
+
         stock.update({
-            'business_summary': bs if bs else "",
+            'sector': info.get('sector'),
+            'industry': info.get('industry'),
+            'business_summary': info.get('longBusinessSummary') or info.get('shortBusinessSummary', ""),
+            'revenue': info.get('totalRevenue'),
+            'operating_margins': info.get('operatingMargins'),
+            'net_income': info.get('netIncomeToCommon'),
+            'website': info.get('website'),
+            'city': info.get('city'),
+            'ceo': ceo,
+            'founded_date': str(founded) if founded else None,
+            'listing_date': list_date,
             'annual_price_change': float(apc * 100) if apc else None,
             'expected_return': float(expected_return) if expected_return else None,
             'enterprise_value': int(ev) if ev else None
@@ -135,7 +155,17 @@ def fetch_additional_info(stock):
     except Exception as e:
         # print(f"Failed to fetch additional info for {stock['symbol']}: {e}")
         stock.update({
+            'sector': None,
+            'industry': None,
             'business_summary': "",
+            'revenue': None,
+            'operating_margins': None,
+            'net_income': None,
+            'website': None,
+            'city': None,
+            'ceo': None,
+            'founded_date': None,
+            'listing_date': stock.get('listing_date'),
             'annual_price_change': None,
             'expected_return': None,
             'enterprise_value': None

@@ -28,8 +28,11 @@ jobs:
           pip install pandas yfinance finance-datareader google-genai python-dotenv beautifulsoup4 requests aiohttp trafilatura markdownify
 
       - name: Run Analytics Pipeline
+        run: python main.py
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_API_KEY_1: ${{ secrets.GOOGLE_API_KEY_1 || secrets.GOOGLE_API_KEY }}
+          GOOGLE_API_KEY_2: ${{ secrets.GOOGLE_API_KEY_2 }}
+          GOOGLE_API_KEY_3: ${{ secrets.GOOGLE_API_KEY_3 }}
           SMTP_SERVER: ${{ secrets.SMTP_SERVER || 'smtp.gmail.com' }}
           SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -37,4 +40,3 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
-        run: python main.py

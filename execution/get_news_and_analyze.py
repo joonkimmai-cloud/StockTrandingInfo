@@ -53,10 +53,11 @@ def rotate_api_key(state):
         return True
     return False
 
-async def fetch_news_kr(session, stock_name):
+async def fetch_news_kr(session, stock_name, symbol):
     """Naver Finance News search for Korean stocks."""
-    print(f"  - KR News Search: {stock_name}")
-    url = f"https://search.naver.com/search.naver?where=news&query={stock_name}"
+    query = f"{stock_name} {symbol}"
+    print(f"  - KR News Search: {query}")
+    url = f"https://search.naver.com/search.naver?where=news&query={query}"
     headers = {
         'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
@@ -77,10 +78,11 @@ async def fetch_news_kr(session, stock_name):
         print(f"Failed to fetch KR news for {stock_name}: {e}")
         return []
 
-async def fetch_news_us(session, ticker):
+async def fetch_news_us(session, stock_name, symbol):
     """Google News search for US stocks."""
-    print(f"  - US News Search: {ticker}")
-    url = f"https://www.google.com/search?q={ticker}+stock+news&tbm=nws"
+    query = f"{stock_name} {symbol}"
+    print(f"  - US News Search: {query}")
+    url = f"https://www.google.com/search?q={query}+stock+news&tbm=nws"
     headers = {
         'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
@@ -252,8 +254,8 @@ async def main():
             data = json.load(f)
 
         # 뉴스 수집 병렬 처리
-        kr_tasks = [fetch_news_kr(session, s['name']) for s in data.get('kr', [])]
-        us_tasks = [fetch_news_us(session, s['symbol']) for s in data.get('us', [])]
+        kr_tasks = [fetch_news_kr(session, s['name'], s['symbol']) for s in data.get('kr', [])]
+        us_tasks = [fetch_news_us(session, s['name'], s['symbol']) for s in data.get('us', [])]
         
         print("Fetching News...")
         kr_news = await asyncio.gather(*kr_tasks)

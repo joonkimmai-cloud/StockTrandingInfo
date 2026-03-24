@@ -62,7 +62,17 @@ def save_to_supabase():
             "name": stock['name'],
             "symbol": stock['symbol'],
             "market": stock['market'],
+            "sector": stock.get('sector'),
+            "industry": stock.get('industry'),
             "business_summary": stock.get('business_summary'),
+            "revenue": stock.get('revenue'),
+            "operating_margins": sanitize(stock.get('operating_margins')),
+            "net_income": stock.get('net_income'),
+            "website": stock.get('website'),
+            "city": stock.get('city'),
+            "ceo": stock.get('ceo'),
+            "founded_date": stock.get('founded_date'),
+            "listing_date": stock.get('listing_date'),
             "updated_at": datetime.now(KST).isoformat()
         }
         
