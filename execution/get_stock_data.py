@@ -11,6 +11,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+LOCK_FILE = '.tmp/batch.lock'
+
+def check_lock():
+    os.makedirs('.tmp', exist_ok=True)
+    if os.path.exists(LOCK_FILE):
+        # 1시간 이상 된 락 파일은 무시 (데드락 방지용)
+        file_time = os.path.getmtime(LOCK_FILE)
+        if (datetime.now().timestamp() - file_time) < 3600:
+            print("⚠️ [보안] 배치가 이미 실행 중입니다. 중복 실행을 방지하기 위해 종료합니다.")
+            sys.exit(0)
+    with open(LOCK_FILE, 'w', encoding='utf-8') as f:
+        f.write(str(os.getpid()))
+
+def remove_lock():
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
+
 def fetch_single_kr_stock(row):
     symbol = row['Code']
     name = row['Name']
@@ -173,32 +190,39 @@ def fetch_additional_info(stock):
     return stock
 
 def main():
-    print("[1단계] 전일 주식시장에서 종목 추출 시작 (한국, 미국)")
-    kr_data = get_relative_volume_kr()
-    us_data = get_relative_volume_us()
-    
-    print("[1단계] 추출된 종목에 대해 기업 핵심(상세) 정보 추가 수집 중...")
-    
-    all_stocks = kr_data + us_data
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = [executor.submit(fetch_additional_info, stock) for stock in all_stocks]
-        for future in as_completed(futures):
-            future.result()
+    check_lock()
+    try:
+        print("[1단계] 전일 주식시장에서 종목 추출 시작 (한국, 미국)")
+        kr_data = get_relative_volume_kr()
+        us_data = get_relative_volume_us()
         
-    print(f"  - 한국 시장 {len(kr_data)}개 종목 추출 및 상세정보 완료")
-    print(f"  - 미국 시장 {len(us_data)}개 종목 추출 및 상세정보 완료")
-    print("[1단계] 종목 추출 종료")
-    
-    output = {
-       'timestamp': datetime.now(KST).isoformat(),
-        'kr': kr_data,
-        'us': us_data
-    }
-    
-    os.makedirs('.tmp', exist_ok=True)
-    with open('.tmp/market_data.json', 'w', encoding='utf-8') as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
-    print("Market data saved to .tmp/market_data.json")
+        print("[1단계] 추출된 종목에 대해 기업 핵심(상세) 정보 추가 수집 중...")
+        
+        all_stocks = kr_data + us_data
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = [executor.submit(fetch_additional_info, stock) for stock in all_stocks]
+            for future in as_completed(futures):
+                future.result()
+            
+        print(f"  - 한국 시장 {len(kr_data)}개 종목 추출 및 상세정보 완료")
+        print(f"  - 미국 시장 {len(us_data)}개 종목 추출 및 상세정보 완료")
+        print("[1단계] 종목 추출 종료")
+        
+        output = {
+        'timestamp': datetime.now(KST).isoformat(),
+            'kr': kr_data,
+            'us': us_data
+        }
+        
+        os.makedirs('.tmp', exist_ok=True)
+        with open('.tmp/market_data.json', 'w', encoding='utf-8') as f:
+            json.dump(output, f, ensure_ascii=False, indent=2)
+        print("Market data saved to .tmp/market_data.json")
+    except Exception as e:
+        print(f"⚠️ [보안] 데이터 수집 중 시스템 내부 오류가 발생했습니다. (상세 내용은 로그 참조)")
+    finally:
+        remove_lock()
 
 if __name__ == "__main__":
     main()
+

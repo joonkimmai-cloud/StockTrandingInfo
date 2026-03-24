@@ -1,11 +1,11 @@
 name: Daily Stock Alpha Report
 
 on:
+  schedule:
+    - cron: '30 22 * * *' # 22:30 UTC = 07:30 KST (대한민국 표준시 기준 매일 아침 7시 30분 도작)
   push:
     branches:
       - main
-  schedule:
-    - cron: '30 22 * * *' # 22:30 UTC = 07:30 KST (대한민국 표준시 기준 매일 아침 7시 30분 도작)
   workflow_dispatch: # Allow manual trigger
 
 jobs:

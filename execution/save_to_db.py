@@ -11,6 +11,23 @@ load_dotenv()
 
 import math
 
+LOCK_FILE = '.tmp/batch.lock'
+
+def check_lock():
+    os.makedirs('.tmp', exist_ok=True)
+    if os.path.exists(LOCK_FILE):
+        # 1시간 이상 된 락 파일은 무시 (데드락 방지용)
+        file_time = os.path.getmtime(LOCK_FILE)
+        if (datetime.now().timestamp() - file_time) < 3600:
+            print("⚠️ [보안] 데이터 저장이 이미 진행 중이거나 다른 배치가 실행 중입니다.")
+            sys.exit(0)
+    with open(LOCK_FILE, 'w', encoding='utf-8') as f:
+        f.write(str(os.getpid()))
+
+def remove_lock():
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
+
 def sanitize(value):
     """NaN/Inf 등 JSON 비호환 float 값을 None으로 변환합니다."""
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -220,4 +237,10 @@ def save_to_supabase():
             print("Database sync (AI Analysis) completed.")
 
 if __name__ == "__main__":
-    save_to_supabase()
+    check_lock()
+    try:
+        save_to_supabase()
+    except Exception as e:
+        print(f"⚠️ [보안] 데이터베이스 동기화 중 오류가 발생했습니다.")
+    finally:
+        remove_lock()

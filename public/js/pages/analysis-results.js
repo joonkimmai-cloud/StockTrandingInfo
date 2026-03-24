@@ -2,6 +2,22 @@ import { renderPagination } from './pagination.js';
 
 const PAGE_SIZE = 15;
 
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str || '';
+    return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[m]));
+}
+
+function sanitizeQuery(str) {
+    if (!str) return '';
+    return str.replace(/[(),.]/g, ''); 
+}
+
 // market_summary / prediction 필드에 포함된 에러 JSON을 제거하고
 // 사람이 읽기 좋은 메시지만 반환하는 정제 함수
 function cleanSummary(text) {
@@ -72,10 +88,10 @@ export async function renderAnalysisResults(container, supabase) {
         reportSection.innerHTML = `
             <div class="card" style="margin-bottom:16px;">
                 <div class="card-title">최근 시장 요약 리포트
-                    <span style="font-size:12px; color:#888; font-weight:400;">${new Date(r.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}</span>
+                    <span style="font-size:12px; color:#888; font-weight:400;">${escapeHTML(new Date(r.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }))}</span>
                 </div>
-                <p style="white-space:pre-wrap; font-size:14px; margin-bottom:10px;"><b style="color:var(--primary-blue);">💡 시장 전체 요약:</b><br>${cleanSummary(r.market_summary)}</p>
-                <p style="white-space:pre-wrap; font-size:14px;"><b style="color:var(--primary-blue);">🎯 오늘의 예측 & 전략:</b><br>${cleanSummary(r.prediction)}</p>
+                <p style="white-space:pre-wrap; font-size:14px; margin-bottom:10px;"><b style="color:var(--primary-blue);">💡 시장 전체 요약:</b><br>${escapeHTML(cleanSummary(r.market_summary))}</p>
+                <p style="white-space:pre-wrap; font-size:14px;"><b style="color:var(--primary-blue);">🎯 오늘의 예측 & 전략:</b><br>${escapeHTML(cleanSummary(r.prediction))}</p>
             </div>
         `;
     }
@@ -95,7 +111,8 @@ export async function renderAnalysisResults(container, supabase) {
         let q = supabase.from('stock_analysis').select('*, companies!inner(name, symbol)', { count: 'exact' });
         
         if (query) {
-            q = q.or(`sentiment.ilike.*${query}*,analysis_content.ilike.*${query}*,companies.name.ilike.*${query}*,companies.symbol.ilike.*${query}*`);
+            const safeQuery = sanitizeQuery(query);
+            q = q.or(`sentiment.ilike.*${safeQuery}*,analysis_content.ilike.*${safeQuery}*,companies.name.ilike.*${safeQuery}*,companies.symbol.ilike.*${safeQuery}*`);
         }
 
         const { data, count, error } = await q
@@ -119,21 +136,21 @@ export async function renderAnalysisResults(container, supabase) {
                 const compSymbol = item.companies?.symbol || '-';
                 const dateText = new Date(item.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
                 
-                let analysisHtml = item.analysis_content || '분석 내용 없음';
+                let analysisHtml = escapeHTML(item.analysis_content || '분석 내용 없음');
                 // 만약 에러 폴백(기사 헤드라인)인 경우 그대로 보여주고,
                 // 정상적인 분석 정보인 경우에는 헤더를 추가합니다.
                 if (analysisHtml.includes('[기사 헤드라인]')) {
                     // 그대로 진행
                 } else if (analysisHtml !== '분석 내용 없음') {
-                    analysisHtml = `<b style="color:var(--success-color); display:block; margin-bottom:5px;">[ai 분석 정보]</b>${analysisHtml}`;
+                    analysisHtml = `<b style="color:var(--success-color); display:block; margin-bottom:5px;">[AI 분석 정보]</b>${analysisHtml}`;
                 }
 
                 return `<tr>
                     <td class="col-no">${no}</td>
-                    <td style="text-align:center;"><b>${compName}</b><br><span style="font-size:12px;color:#777;">(${compSymbol})</span></td>
-                    <td style="text-align:center;"><span style="${color}">${label}</span></td>
+                    <td style="text-align:center;"><b>${escapeHTML(compName)}</b><br><span style="font-size:12px;color:#777;">(${escapeHTML(compSymbol)})</span></td>
+                    <td style="text-align:center;"><span style="${escapeHTML(color)}">${escapeHTML(label)}</span></td>
                     <td style="white-space:pre-wrap; font-size:13px; line-height:1.5;">${analysisHtml}</td>
-                    <td style="font-size:12px; color:#555; text-align:center;">${dateText}</td>
+                    <td style="font-size:12px; color:#555; text-align:center;">${escapeHTML(dateText)}</td>
                 </tr>`;
             }).join('');
         } else {

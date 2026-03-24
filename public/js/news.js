@@ -1,6 +1,16 @@
-/* public/js/news.js */
 const SUPABASE_URL = "https://fwptckxvhyzydrfralhw.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
+
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str || '';
+    return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[m]));
+}
 
 function getParam(name) {
     return new URLSearchParams(window.location.search).get(name);
@@ -67,11 +77,11 @@ async function renderList(page = 1) {
             });
 
             const row = `
-                <tr onclick="location.href='news.html?id=${article.id}'">
-                    <td class="td-company">${article.company_name || 'Stock Alpha'}</td>
-                    <td class="td-title">${article.title}</td>
-                    <td class="td-source">${article.source_name || 'News Source'}</td>
-                    <td class="td-date">${date}</td>
+                <tr onclick="location.href='news.html?id=${escapeHTML(article.id)}'">
+                    <td class="td-company">${escapeHTML(article.company_name || 'Stock Alpha')}</td>
+                    <td class="td-title">${escapeHTML(article.title)}</td>
+                    <td class="td-source">${escapeHTML(article.source_name || 'News Source')}</td>
+                    <td class="td-date">${escapeHTML(date)}</td>
                 </tr>
             `;
             body.insertAdjacentHTML('beforeend', row);

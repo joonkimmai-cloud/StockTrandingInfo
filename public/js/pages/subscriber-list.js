@@ -2,6 +2,23 @@ import { renderPagination } from './pagination.js';
 
 const PAGE_SIZE = 15;
 
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str || '';
+    return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[m]));
+}
+
+function sanitizeQuery(str) {
+    if (!str) return '';
+    // LIKE 와일드카드 및 PostgREST 예약어 제거
+    return str.replace(/[(),.%_]/g, ''); 
+}
+
 export async function renderSubscriberList(contentEl, supabaseClient) {
     let currentPage = 0;
     let currentQuery = '';
@@ -48,7 +65,8 @@ export async function renderSubscriberList(contentEl, supabaseClient) {
         let q = supabaseClient.from('subscribers').select('*', { count: 'exact' });
         
         if (query) {
-            q = q.ilike('email', `%${query}%`);
+            const safeQuery = sanitizeQuery(query);
+            q = q.ilike('email', `%${safeQuery}%`);
         }
 
         const { data, count, error } = await q
@@ -72,16 +90,16 @@ export async function renderSubscriberList(contentEl, supabaseClient) {
                 
                 return `<tr>
                     <td class="col-no">${no}</td>
-                    <td style="font-weight:600">${row.email}</td>
+                    <td style="font-weight:600">${escapeHTML(row.email)}</td>
                     <td>
                         <button class="status-btn" 
-                                data-id="${row.id}" 
+                                data-id="${escapeHTML(row.id)}" 
                                 data-active="${row.is_active !== false}"
                                 style="border:none; border-radius:4px; padding:4px 10px; cursor:pointer; font-size:12px; font-weight:600; ${statusColor}">
-                            ${statusLabel}
+                            ${escapeHTML(statusLabel)}
                         </button>
                     </td>
-                    <td style="color:var(--text-muted)">${dateText}</td>
+                    <td style="color:var(--text-muted)">${escapeHTML(dateText)}</td>
                 </tr>`;
             }).join('');
 

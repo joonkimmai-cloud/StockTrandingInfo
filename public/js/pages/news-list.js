@@ -2,6 +2,22 @@ import { renderPagination } from './pagination.js';
 
 const PAGE_SIZE = 15;
 
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str || '';
+    return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[m]));
+}
+
+function sanitizeQuery(str) {
+    if (!str) return '';
+    return str.replace(/[(),.]/g, ''); 
+}
+
 export async function renderNewsList(container, supabase) {
     // 1. 초기 뼈대 그리기
     container.innerHTML = `
@@ -53,7 +69,8 @@ export async function renderNewsList(container, supabase) {
         let q = supabase.from('news_articles').select('*', { count: 'exact' });
         
         if (query) {
-            q = q.or(`title.ilike.*${query}*,company_name.ilike.*${query}*,source_name.ilike.*${query}*`);
+            const safeQuery = sanitizeQuery(query);
+            q = q.or(`title.ilike.*${safeQuery}*,company_name.ilike.*${safeQuery}*,source_name.ilike.*${safeQuery}*`);
         }
 
         const { data, count, error } = await q
@@ -82,12 +99,12 @@ export async function renderNewsList(container, supabase) {
             const no = from + i + 1;
             const date = new Date(item.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
             return `
-                <tr class="clickable-row" data-id="${item.id}">
+                <tr class="clickable-row" data-id="${escapeHTML(item.id)}">
                     <td style="color:#888;">${no}</td>
-                    <td><b>${item.company_name || '알수없음'}</b></td>
-                    <td style="text-align:left;">${item.title}</td>
-                    <td>${item.source_name || '-'}</td>
-                    <td style="color:#888; font-size:13px;">${date}</td>
+                    <td><b>${escapeHTML(item.company_name || '알수없음')}</b></td>
+                    <td style="text-align:left;">${escapeHTML(item.title)}</td>
+                    <td>${escapeHTML(item.source_name || '-')}</td>
+                    <td style="color:#888; font-size:13px;">${escapeHTML(date)}</td>
                 </tr>
             `;
         }).join('');
@@ -138,16 +155,16 @@ function showNewsDetail(article) {
     if (article.thumbnail_url) {
         bodyHtml += `
             <div style="text-align:center; margin-bottom:15px;">
-                <img src="${article.thumbnail_url}" style="max-width:100%; border-radius:8px; border:1px solid #eee;">
+                <img src="${escapeHTML(article.thumbnail_url)}" style="max-width:100%; border-radius:8px; border:1px solid #eee;">
             </div>
         `;
     }
     
     bodyHtml += `
         <div style="background:#f9f9f9; padding:15px; border-radius:8px; line-height:1.6; color:#444;">
-            <p style="margin-top:0;"><b>출처:</b> ${article.source_name || '알 수 없음'}</p>
+            <p style="margin-top:0;"><b>출처:</b> ${escapeHTML(article.source_name || '알 수 없음')}</p>
             <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-            <div style="white-space:pre-wrap;">${article.snippet || article.content || '본문 내용이 없습니다.'}</div>
+            <div style="white-space:pre-wrap;">${escapeHTML(article.snippet || article.content || '본문 내용이 없습니다.')}</div>
         </div>
         <p style="font-size:12px; color:#999; margin-top:15px;">※ 본 요약 내용은 수집 당시의 데이터이며, 자세한 내용은 원문 기사를 확인해 주세요.</p>
     `;

@@ -2,6 +2,25 @@ import { renderPagination } from './pagination.js';
 
 const PAGE_SIZE = 15;
 
+// XSS 방지를 위한 HTML 이스케이프 함수
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str || '';
+    return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[m]));
+}
+
+// 검색 쿼리에서 필터 예약어(쉼표, 괄호 등)를 이스케이프하여 필터 인젝션 방지
+function sanitizeQuery(str) {
+    if (!str) return '';
+    // PostgREST/Supabase .or() 쿼리에서 문제를 일으킬 수 있는 특수문자 제거 또는 회피
+    return str.replace(/[(),.]/g, ''); 
+}
+
 export async function renderCompanies(contentEl, supabaseClient) {
     let currentPage = 0;
     let currentQuery = '';
@@ -51,7 +70,8 @@ export async function renderCompanies(contentEl, supabaseClient) {
         let q = supabaseClient.from('companies').select('*', { count: 'exact' });
         
         if (query) {
-            q = q.or(`symbol.ilike.*${query}*,name.ilike.*${query}*,sector.ilike.*${query}*,industry.ilike.*${query}*`);
+            const safeQuery = sanitizeQuery(query);
+            q = q.or(`symbol.ilike.*${safeQuery}*,name.ilike.*${safeQuery}*,sector.ilike.*${safeQuery}*,industry.ilike.*${safeQuery}*`);
         }
 
         const { data, count, error } = await q
@@ -73,14 +93,14 @@ export async function renderCompanies(contentEl, supabaseClient) {
                 const dateCreated = row.created_at ? new Date(row.created_at).toLocaleDateString('ko-KR') : '-';
                 const dateUpdated = row.updated_at ? new Date(row.updated_at).toLocaleDateString('ko-KR') : '-';
                 
-                return `<tr class="clickable-row" onclick="window.showCompanyDetail('${row.id}')">
+                return `<tr class="clickable-row" onclick="window.showCompanyDetail('${escapeHTML(row.id)}')">
                     <td class="col-no">${no}</td>
-                    <td><b>${row.symbol}</b></td>
-                    <td>${row.name}</td>
-                    <td style="color:var(--primary-blue)">${marcap}</td>
-                    <td>${row.per || '-'}/${row.pbr || '-'}</td>
-                    <td style="font-size: 0.8rem; color: #666;">${dateCreated}</td>
-                    <td style="font-size: 0.8rem; color: #666;">${dateUpdated}</td>
+                    <td><b>${escapeHTML(row.symbol)}</b></td>
+                    <td>${escapeHTML(row.name)}</td>
+                    <td style="color:var(--primary-blue)">${escapeHTML(marcap)}</td>
+                    <td>${escapeHTML(row.per || '-')}/${escapeHTML(row.pbr || '-')}</td>
+                    <td style="font-size: 0.8rem; color: #666;">${escapeHTML(dateCreated)}</td>
+                    <td style="font-size: 0.8rem; color: #666;">${escapeHTML(dateUpdated)}</td>
                 </tr>`;
             }).join('');
         } else {
@@ -131,31 +151,31 @@ export async function renderCompanies(contentEl, supabaseClient) {
                 <h4 style="margin: 0 0 12px 0; color: #0051C3; display: flex; align-items: center; gap: 8px; font-size: 1.1rem;">
                     <span>🏢</span> 기업 개요
                 </h4>
-                <p style="font-size: 0.95rem; line-height: 1.7; color: #334155; margin: 0; white-space: pre-wrap;">${data.business_summary || '수집된 기업 요약 정보가 없습니다.'}</p>
+                <p style="font-size: 0.95rem; line-height: 1.7; color: #334155; margin: 0; white-space: pre-wrap;">${escapeHTML(data.business_summary || '수집된 기업 요약 정보가 없습니다.')}</p>
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px;">
                 <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                     <h4 style="margin: 0 0 16px 0; color: #111827; border-left: 4px solid #0051C3; padding-left: 10px; font-size: 1rem;">🔎 기본 정보</h4>
                     <table style="width: 100%; font-size: 0.95rem; border-collapse: collapse;">
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280; width: 40%;">시장 구분</td><td style="font-weight: 500;">${data.market || '-'}</td></tr>
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">섹터 / 업종</td><td style="font-weight: 500;">${data.sector || '-'}</td></tr>
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">상세 산업</td><td style="font-weight: 500;">${data.industry || '-'}</td></tr>
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">대표자 (CEO)</td><td style="font-weight: 500;">${data.ceo || '-'}</td></tr>
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">설립 / 상장일</td><td style="font-weight: 500;">${data.founded_date || '-'} / ${data.listing_date || '-'}</td></tr>
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">위치 (City)</td><td style="font-weight: 500;">${data.city || '-'}</td></tr>
-                        <tr><td style="padding: 10px 0; color: #6b7280;">공식 웹사이트</td><td><a href="${data.website}" target="_blank" style="color: #0051C3; text-decoration: none;">${data.website ? '방문하기 🔗' : '-'}</a></td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280; width: 40%;">시장 구분</td><td style="font-weight: 500;">${escapeHTML(data.market || '-')}</td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">섹터 / 업종</td><td style="font-weight: 500;">${escapeHTML(data.sector || '-')}</td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">상세 산업</td><td style="font-weight: 500;">${escapeHTML(data.industry || '-')}</td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">대표자 (CEO)</td><td style="font-weight: 500;">${escapeHTML(data.ceo || '-')}</td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">설립 / 상장일</td><td style="font-weight: 500;">${escapeHTML(data.founded_date || '-')} / ${escapeHTML(data.listing_date || '-')}</td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">위치 (City)</td><td style="font-weight: 500;">${escapeHTML(data.city || '-')}</td></tr>
+                        <tr><td style="padding: 10px 0; color: #6b7280;">공식 웹사이트</td><td><a href="${escapeHTML(data.website)}" target="_blank" style="color: #0051C3; text-decoration: none;">${data.website ? '방문하기 🔗' : '-'}</a></td></tr>
                     </table>
                 </div>
                 
                 <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                     <h4 style="margin: 0 0 16px 0; color: #111827; border-left: 4px solid #238636; padding-left: 10px; font-size: 1rem;">💵 주요 재무 및 지표</h4>
                     <table style="width: 100%; font-size: 0.95rem; border-collapse: collapse;">
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280; width: 40%;">시가총액</td><td style="font-weight: 600;">${marcap}</td></tr>
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">연간 매출액</td><td style="font-weight: 600;">${revenue}</td></tr>
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">영업이익률</td><td style="color: #238636; font-weight: 600;">${margin}</td></tr>
-                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">당기순이익</td><td style="font-weight: 600;">${netIncome}</td></tr>
-                        <tr><td style="padding: 10px 0; color: #6b7280;">PER / PBR</td><td style="font-weight: 600;">${data.per || '-'} / ${data.pbr || '-'}</td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280; width: 40%;">시가총액</td><td style="font-weight: 600;">${escapeHTML(marcap)}</td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">연간 매출액</td><td style="font-weight: 600;">${escapeHTML(revenue)}</td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">영업이익률</td><td style="color: #238636; font-weight: 600;">${escapeHTML(margin)}</td></tr>
+                        <tr style="border-bottom: 1px solid #f3f4f6;"><td style="padding: 10px 0; color: #6b7280;">당기순이익</td><td style="font-weight: 600;">${escapeHTML(netIncome)}</td></tr>
+                        <tr><td style="padding: 10px 0; color: #6b7280;">PER / PBR</td><td style="font-weight: 600;">${escapeHTML(data.per || '-')}/${escapeHTML(data.pbr || '-')}</td></tr>
                     </table>
                 </div>
             </div>

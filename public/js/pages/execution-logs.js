@@ -2,6 +2,22 @@ import { renderPagination } from './pagination.js';
 
 const PAGE_SIZE = 15;
 
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str || '';
+    return str.replace(/[&<>"']/g, (m) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[m]));
+}
+
+function sanitizeQuery(str) {
+    if (!str) return '';
+    return str.replace(/[(),.]/g, ''); 
+}
+
 export async function renderExecutionLogs(contentEl, supabaseClient) {
     let currentPage = 0;
     let currentQuery = '';
@@ -49,7 +65,8 @@ export async function renderExecutionLogs(contentEl, supabaseClient) {
         let q = supabaseClient.from('execution_logs').select('*', { count: 'exact' });
         
         if (query) {
-            q = q.or(`step_name.ilike.*${query}*,status.ilike.*${query}*,log_message.ilike.*${query}*`);
+            const safeQuery = sanitizeQuery(query);
+            q = q.or(`step_name.ilike.*${safeQuery}*,status.ilike.*${safeQuery}*,log_message.ilike.*${safeQuery}*`);
         }
 
         const { data, count, error } = await q
@@ -68,13 +85,13 @@ export async function renderExecutionLogs(contentEl, supabaseClient) {
             tbody.innerHTML = data.map((row, i) => {
                 const no = from + i + 1;
                 const dateText = new Date(row.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
-                const statusClass = (row.status || '').toLowerCase();
+                const statusClass = escapeHTML((row.status || '').toLowerCase());
                 return `<tr>
                     <td class="col-no">${no}</td>
-                    <td style="color:var(--text-muted); font-size:0.8rem;">${dateText}</td>
-                    <td style="font-weight:600">${row.step_name}</td>
-                    <td><span class="status-dot ${statusClass}"></span>${row.status}</td>
-                    <td style="font-size:0.85rem">${row.log_message || ''}</td>
+                    <td style="color:var(--text-muted); font-size:0.8rem;">${escapeHTML(dateText)}</td>
+                    <td style="font-weight:600">${escapeHTML(row.step_name)}</td>
+                    <td><span class="status-dot ${statusClass}"></span>${escapeHTML(row.status)}</td>
+                    <td style="font-size:0.85rem">${escapeHTML(row.log_message || '')}</td>
                 </tr>`;
             }).join('');
         } else {

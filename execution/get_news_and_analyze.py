@@ -11,6 +11,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+LOCK_FILE = '.tmp/batch.lock'
+
+def check_lock():
+    os.makedirs('.tmp', exist_ok=True)
+    if os.path.exists(LOCK_FILE):
+        # 1시간 이상 된 락 파일은 무시 (데드락 방지용)
+        file_time = os.path.getmtime(LOCK_FILE)
+        if (datetime.now().timestamp() - file_time) < 3600:
+            print("⚠️ [보안] 배치가 이미 실행 중입니다. 중복 실행을 방지하기 위해 종료합니다.")
+            sys.exit(0)
+    with open(LOCK_FILE, 'w', encoding='utf-8') as f:
+        f.write(str(os.getpid()))
+
+def remove_lock():
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
+
 def get_api_key_with_rotation():
     state_file = '.tmp/api_key_state.json'
     today = datetime.now(KST).strftime('%Y-%m-%d')
@@ -236,70 +253,80 @@ async def check_existing_analysis(session):
     return None
 
 async def main():
-    print("[2단계] 뉴스 수집 및 AI 분석 파이프라인 시작")
-    if not os.path.exists('.tmp/market_data.json'):
-        print("Market data not found.")
-        sys.exit(1)
-
-    async with aiohttp.ClientSession() as session:
-        # 중복 방지 체크
-        cached = await check_existing_analysis(session)
-        if cached:
-            print("[2&3단계] (INFO) DB에 오늘 자 AI 분석 리포트가 이미 존재하여 작업을 생략합니다.")
-            with open('.tmp/report.json', 'w', encoding='utf-8') as f:
-                json.dump(cached, f, ensure_ascii=False, indent=2)
+    check_lock()
+    try:
+        print("[2단계] 뉴스 수집 및 AI 분석 파이프라인 시작")
+        if not os.path.exists('.tmp/market_data.json'):
+            print("⚠️ 데이터 파일(market_data.json)을 찾을 수 없습니다.")
             return
 
-        with open('.tmp/market_data.json', 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        async with aiohttp.ClientSession() as session:
+            # 중복 방지 체크
+            cached = await check_existing_analysis(session)
+            if cached:
+                print("[2&3단계] (INFO) DB에 오늘 자 AI 분석 리포트가 이미 존재하여 작업을 생략합니다.")
+                with open('.tmp/report.json', 'w', encoding='utf-8') as f:
+                    json.dump(cached, f, ensure_ascii=False, indent=2)
+                return
 
-        # 뉴스 수집 병렬 처리
-        kr_tasks = [fetch_news_kr(session, s['name'], s['symbol']) for s in data.get('kr', [])]
-        us_tasks = [fetch_news_us(session, s['name'], s['symbol']) for s in data.get('us', [])]
-        
-        print("Fetching News...")
-        kr_news = await asyncio.gather(*kr_tasks)
-        us_news = await asyncio.gather(*us_tasks)
-        
-        for i, news in enumerate(kr_news): data['kr'][i]['news'] = news
-        for i, news in enumerate(us_news): data['us'][i]['news'] = news
-        
-        # save news data separately for save_to_db.py compatibility
-        with open('.tmp/news_data.json', 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            if not os.path.exists('.tmp/market_data.json'):
+                return
+                
+            with open('.tmp/market_data.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
 
-        print("Generating AI Analysis...")
-        report = await generate_analysis(session, data)
-        if not report:
-            print("[WARN] AI Analysis failed to generate. Using fallback (raw headlines).")
-            # Fallback report with raw headlines
-            report = {
-                "status": "success",
-                "market_summary": "⚠️ AI 분석 지연 (API 응답 실패). 수집된 최신 뉴스를 로우 데이터 형태로 전송합니다.",
-                "prediction": "최신 뉴스 헤드라인을 직접 참고하여 보수적인 관점으로 시장에 대응하시기 바랍니다.",
-                "kr_analysis": [],
-                "us_analysis": []
-            }
+            # 뉴스 수집 병렬 처리
+            kr_tasks = [fetch_news_kr(session, s['name'], s['symbol']) for s in data.get('kr', [])]
+            us_tasks = [fetch_news_us(session, s['name'], s['symbol']) for s in data.get('us', [])]
             
-            for s in data.get('kr', []):
-                news_titles = "\n".join([f"• {n['title']}" for n in s.get('news', [])])
-                report['kr_analysis'].append({
-                    "name": f"{s['name']} ({s['symbol']})",
-                    "analysis": f"[최신 뉴스]\n{news_titles if news_titles else '관련 기사 없음'}",
-                    "sentiment": "Neutral"
-                })
-            for s in data.get('us', []):
-                news_titles = "\n".join([f"• {n['title']}" for n in s.get('news', [])])
-                report['us_analysis'].append({
-                    "name": f"{s['name']} ({s['symbol']})",
-                    "analysis": f"[Recent News]\n{news_titles if news_titles else 'No news available'}",
-                    "sentiment": "Neutral"
-                })
+            print("Fetching News...")
+            kr_news = await asyncio.gather(*kr_tasks)
+            us_news = await asyncio.gather(*us_tasks)
             
-        with open('.tmp/report.json', 'w', encoding='utf-8') as f:
-            json.dump(report, f, ensure_ascii=False, indent=2)
+            for i, news in enumerate(kr_news): data['kr'][i]['news'] = news
+            for i, news in enumerate(us_news): data['us'][i]['news'] = news
             
-    print("[2&3단계] 수집 및 분석 종료 (report.json 저장 완료)")
+            # save news data separately for save_to_db.py compatibility
+            with open('.tmp/news_data.json', 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+
+            print("Generating AI Analysis...")
+            report = await generate_analysis(session, data)
+            if not report:
+                print("[보안 알림] AI 분석 생성이 지연되어 대체 텍스트를 구성합니다.")
+                # Fallback report with raw headlines
+                report = {
+                    "status": "success",
+                    "market_summary": "⚠️ AI 분석 지연 (API 응답 실패). 수집된 최신 뉴스를 로우 데이터 형태로 전송합니다.",
+                    "prediction": "최신 뉴스 헤드라인을 직접 참고하여 보수적인 관점으로 시장에 대응하시기 바랍니다.",
+                    "kr_analysis": [],
+                    "us_analysis": []
+                }
+                
+                for s in data.get('kr', []):
+                    news_titles = "\n".join([f"• {n['title']}" for n in s.get('news', [])])
+                    report['kr_analysis'].append({
+                        "name": f"{s['name']} ({s['symbol']})",
+                        "analysis": f"[최신 뉴스]\n{news_titles if news_titles else '관련 기사 없음'}",
+                        "sentiment": "Neutral"
+                    })
+                for s in data.get('us', []):
+                    news_titles = "\n".join([f"• {n['title']}" for n in s.get('news', [])])
+                    report['us_analysis'].append({
+                        "name": f"{s['name']} ({s['symbol']})",
+                        "analysis": f"[Recent News]\n{news_titles if news_titles else 'No news available'}",
+                        "sentiment": "Neutral"
+                    })
+                
+            with open('.tmp/report.json', 'w', encoding='utf-8') as f:
+                json.dump(report, f, ensure_ascii=False, indent=2)
+                
+        print("[2&3단계] 수집 및 분석 종료 (report.json 저장 완료)")
+    except Exception as e:
+        print(f"⚠️ [보안] 프로세스 실행 중 예기치 않은 오류가 발생했습니다. (상세 내역은 로그 서버 확인)")
+        # 보안을 위해 상세 에러(e)는 외부로 직접 출력하지 않거나 내부 로그에서만 관리 권장
+    finally:
+        remove_lock()
 
 if __name__ == "__main__":
     asyncio.run(main())
