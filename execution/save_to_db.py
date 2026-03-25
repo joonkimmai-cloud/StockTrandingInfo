@@ -128,6 +128,9 @@ def save_news():
                     "title": article['title'],
                     "source_url": article.get('url'),
                     "source_name": article.get('source') or article.get('source_name'),
+                    "content": article.get('content'),
+                    "snippet": article.get('snippet'),
+                    "thumbnail_url": article.get('thumbnail'),
                     "published_at": pub_date,
                     "position": i + 1
                 }

@@ -237,18 +237,25 @@ async function renderDetail(id) {
         
         const articlesList = document.getElementById('source-articles-list');
         if (newsResults && newsResults.length > 0) {
-            let newsHtml = '<ul style="list-style:none; padding:0;">';
+            let newsHtml = '<div class="news-detail-container">';
             newsResults.forEach(n => {
+                const thumb = n.thumbnail_url ? `<img src="${n.thumbnail_url}" class="news-thumb" alt="thumbnail">` : '';
                 newsHtml += `
-                    <li style="margin-bottom: 12px; padding: 10px; border-bottom: 1px dotted #eee;">
-                        <a href="${escapeHTML(n.source_url)}" target="_blank" style="text-decoration:none; color:var(--primary-color); font-weight:600; display:block; margin-bottom:4px;">
-                            ${escapeHTML(n.title)} <span style="font-size:12px; font-weight:normal; color:#999;">↗</span>
-                        </a>
-                        <span style="font-size:12px; color:#888;">출처: ${escapeHTML(n.source_name || '알 수 없음')}</span>
-                    </li>
+                    <div class="news-item-card" onclick="window.open('${escapeHTML(n.source_url)}', '_blank')">
+                        ${thumb}
+                        <div class="news-text-content">
+                            <h4 class="news-item-title">${escapeHTML(n.title)}</h4>
+                            <p class="news-item-snippet">${escapeHTML(n.snippet || '')}</p>
+                            <p class="news-item-summary">${escapeHTML(n.content || '').replace(/\n/g, '<br>')}</p>
+                            <div class="news-item-footer">
+                                <span class="news-source">${escapeHTML(n.source_name || '알 수 없음')}</span>
+                                <span class="news-link-icon">원문 보기 ↗</span>
+                            </div>
+                        </div>
+                    </div>
                 `;
             });
-            newsHtml += '</ul>';
+            newsHtml += '</div>';
             articlesList.innerHTML = newsHtml;
         } else {
             articlesList.innerHTML = '<div style="color:#999; padding:20px;">수집된 관련 기사가 없습니다.</div>';
