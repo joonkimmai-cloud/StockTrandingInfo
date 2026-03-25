@@ -74,7 +74,7 @@ async def fetch_news_kr(session, stock_name, symbol):
     """Naver Finance News search for Korean stocks."""
     query = f"{stock_name} {symbol}"
     print(f"  - KR News Search: {query}")
-    url = f"https://search.naver.com/search.naver?where=news&query={query}"
+    url = f"https://search.naver.com/search.naver?where=news&query={query}&sort=1"
     headers = {
         'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
@@ -83,13 +83,22 @@ async def fetch_news_kr(session, stock_name, symbol):
             if response.status != 200: return []
             html = await response.text()
             soup = BeautifulSoup(html, 'html.parser')
-            news_items = soup.select('.news_tit')
+            # 네이버 최신 UI(Fender) 대응을 위해 여러 셀렉터 시도
+            news_items = soup.select('.news_tit, a.oNXvhe7BL30eEPS64wes, a[class*="tit"], .fender-ui_228e3bd1')
+            
+            # 셀렉터로 못 찾은 경우 구조적 접근 (li.bx 내의 링크 중 기사 링크 패턴)
+            if not news_items:
+                news_items = [a for a in soup.find_all('a', href=True) 
+                             if ('news' in a.get('class', []) or 'tit' in "".join(a.get('class', []))) 
+                             and len(a.get_text().strip()) > 10]
+
             news = []
-            for item in news_items[:5]:
-                news.append({
-                    'title': item.get_text().strip(),
-                    'url': item['href']
-                })
+            for item in news_items:
+                title = item.get_text().strip()
+                url = item.get('href')
+                if title and url and url.startswith('http'):
+                    news.append({'title': title, 'url': url})
+                if len(news) >= 10: break
             return news
     except Exception as e:
         print(f"Failed to fetch KR news for {stock_name}: {e}")
@@ -99,7 +108,7 @@ async def fetch_news_us(session, stock_name, symbol):
     """Google News search for US stocks."""
     query = f"{stock_name} {symbol}"
     print(f"  - US News Search: {query}")
-    url = f"https://www.google.com/search?q={query}+stock+news&tbm=nws"
+    url = f"https://www.google.com/search?q={query}+stock+news&tbm=nws&tbs=sbd:1"
     headers = {
         'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
@@ -117,7 +126,7 @@ async def fetch_news_us(session, stock_name, symbol):
                     if g_url.startswith('/url?q='):
                         g_url = g_url.split('/url?q=')[1].split('&')[0]
                     news.append({'title': title, 'url': g_url})
-                if len(news) >= 5: break
+                if len(news) >= 10: break
             return news
     except Exception as e:
         print(f"Failed to fetch US news for {ticker}: {e}")
@@ -158,7 +167,7 @@ async def generate_analysis(session, stock_data):
         {json.dumps(stock_data, ensure_ascii=False, indent=2)}
         
         [분석 가이드]
-        1. 각 종목의 RVOL(상대적 거래량) 급증 원인 분석 (매크로, 뉴스, 산업 테마).
+        1. 각 종목의 RVOL(상대적 거래량) 급증 원인을 제공된 다수의 뉴스(최대 10개)를 종합하여 다각도로 분석해 주세요 (매크로, 뉴스, 산업 테마).
         2. 시장 전반의 요약과 향후 증시 예측 (에널리스트 톤).
         3. Sentiment (Bullish/Bearish) 명시.
         4. 분석 결과는 반드시 JSON 객체로만 출력하세요.

@@ -103,16 +103,16 @@ def send_verification_email(to_email, code):
     smtp_password = os.getenv("SMTP_PASSWORD")
 
     msg = MIMEMultipart()
-    msg['From'] = f"Stock Tranding Info <{smtp_user}>"
+    msg['From'] = f"short game <{smtp_user}>"
     msg['To'] = to_email
-    msg['Subject'] = "[Stock Tranding Info] 이메일 인증 코드"
+    msg['Subject'] = "[short game] 이메일 인증 코드"
 
     body = f"""
     <html><body style="font-family:'Segoe UI',sans-serif;background:#f0f2f5;padding:30px;">
     <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
         <div style="background:linear-gradient(135deg,#004e92 0%,#000428 100%);color:#fff;padding:30px;text-align:center;">
             <h2 style="margin:0;">이메일 인증</h2>
-            <p style="margin:8px 0 0;opacity:.85;">Stock Tranding Info 구독 인증 코드입니다.</p>
+            <p style="margin:8px 0 0;opacity:.85;">short game 구독 인증 코드입니다.</p>
         </div>
         <div style="padding:32px;text-align:center;">
             <p style="font-size:15px;color:#333;">아래 6자리 인증 코드를 입력해 주세요.</p>

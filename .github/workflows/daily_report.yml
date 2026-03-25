@@ -1,13 +1,13 @@
 name: Daily Stock Alpha Report
 
 on:
+  workflow_dispatch: # Allow manual trigger
   schedule:
     - cron: '30 22 * * *' # 22:30 UTC = 07:30 KST (대한민국 표준시 기준 매일 아침 7시 30분 도작)
   push:
     branches:
       - main
-  workflow_dispatch: # Allow manual trigger
-
+  
 jobs:
   report:
     runs-on: ubuntu-latest

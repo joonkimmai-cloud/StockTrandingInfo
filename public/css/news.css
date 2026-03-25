@@ -130,6 +130,11 @@
     letter-spacing: -0.5px;
 }
 
+.detail-header h1 a:hover {
+    color: var(--primary-color) !important;
+    text-decoration: underline !important;
+}
+
 .detail-meta {
     font-size: 15px;
     color: #888;
