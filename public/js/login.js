@@ -11,6 +11,22 @@ const SUPABASE_KEY = "sb_publishable_ZRdywELTvsTlfdU4SUCYsg_IASTgk3X";
 // 2. 앱(웹페이지)가 시작할 때 위 정보를 조합하여, supabaseClient라는 통신 객체를 새로 만듭니다.
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// [추가] 보안 정책(CSP)으로 인해 인라인 onclick이 막힐 수 있으므로, 자바스크립트에서 클릭 이벤트를 연결합니다.
+document.addEventListener('DOMContentLoaded', () => {
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', handleLogin);
+    }
+
+    // 비밀번호 입력창에서 '엔터'키를 쳤을 때도 로그인이 실행되도록 합니다.
+    const passwordInput = document.getElementById('admin-pw');
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleLogin();
+        });
+    }
+});
+
 /**
  * 3. 관리자가 로그인 버튼을 클릭했을 때 작동하는 메인 함수
  * async : 이 함수 안에서 네트워크(DB) 통신 등 잠시 시간이 걸리는 동작(await)을 할 수 있게 허용합니다.
