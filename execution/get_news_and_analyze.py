@@ -71,8 +71,8 @@ def rotate_api_key(state):
     return False
 
 async def fetch_news_kr(session, stock_name, symbol):
-    """Naver Finance News search for Korean stocks."""
-    query = f"{stock_name} {symbol}"
+    """Naver Finance News search for Korean stocks (Economy category only)."""
+    query = f"{stock_name} 경제"
     print(f"  - KR News Search: {query}")
     url = f"https://search.naver.com/search.naver?where=news&query={query}&sort=1"
     headers = {
@@ -105,8 +105,8 @@ async def fetch_news_kr(session, stock_name, symbol):
         return []
 
 async def fetch_news_us(session, stock_name, symbol):
-    """Google News search for US stocks."""
-    query = f"{stock_name} {symbol}"
+    """Google News search for US stocks (Finance category only)."""
+    query = f"{stock_name} Finance"
     print(f"  - US News Search: {query}")
     url = f"https://www.google.com/search?q={query}+stock+news&tbm=nws&tbs=sbd:1"
     headers = {
