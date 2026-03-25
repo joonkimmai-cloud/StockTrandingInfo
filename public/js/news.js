@@ -51,17 +51,17 @@ async function renderList(page = 1) {
     document.getElementById('news-detail-view').style.display = 'none';
     const body = document.getElementById('news-list-body');
     const pagination = document.getElementById('pagination-controls');
+    const pageSize = 50; 
     
     body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:50px;">분석 데이터를 불러오는 중입니다...</td></tr>';
     pagination.innerHTML = '';
 
     try {
         const offset = (page - 1) * pageSize;
-        // stock_analysis 테이블 중심 조회 (AI 분석이 있는 것만)
-        const query = "select=*,companies(name,market)&analysis_content=not.is.null&order=created_at.desc&limit=100";
+        // 모든 분석 데이터를 가져오기 위해 필터 완화 및 리밋 확대
+        const query = "select=*,companies(name,market)&order=created_at.desc&limit=200";
         const headers = {
-            'Prefer': 'count=exact',
-            'Range': `${offset}-${offset + pageSize - 1}`
+            'Prefer': 'count=exact'
         };
 
         const { data, total } = await sbGet('stock_analysis', query, headers);
