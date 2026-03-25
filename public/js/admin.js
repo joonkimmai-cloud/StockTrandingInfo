@@ -57,6 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 로그아웃 버튼
     document.getElementById('logout-btn').addEventListener('click', window.handleLogout);
 
+    // [추가] 메인 페이지 이동 버튼 (보안 정책 CSP로 인해 JS에서 처리)
+    const mainPageBtn = document.getElementById('main-page-btn');
+    if (mainPageBtn) {
+        mainPageBtn.addEventListener('click', () => { window.location.href = 'index.html'; });
+    }
+
     // 맨 처음 화면이 열릴 때 전체 통계를 한 번 불러옵니다.
     initDashboard();
 });
