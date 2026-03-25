@@ -228,7 +228,7 @@ async def main():
             if "**" in news_text: news_text = "- 수집된 관련 기사 및 공시 없음"
             fallback_kr.append({
                 "name": stock.get('name'),
-                "analysis": f"[기사 헤드라인]\n{news_text}",
+                "analysis": f"{news_text}",
                 "sentiment": "Neutral"
             })
             
@@ -238,7 +238,7 @@ async def main():
             if "**" in news_text: news_text = "- 수집된 관련 기사 및 공시 없음"
             fallback_us.append({
                 "name": stock.get('name'),
-                "analysis": f"[기사 헤드라인]\n{news_text}",
+                "analysis": f"{news_text}",
                 "sentiment": "Neutral"
             })
 

@@ -68,7 +68,11 @@ def build_html_template(data, news_data=None):
     if not news_data: news_data = {}
 
     kr_html = ""
+    seen_kr = set()
     for stock in data.get('kr_analysis', []):
+        if stock['name'] in seen_kr: continue
+        seen_kr.add(stock['name'])
+        
         s_upper = str(stock.get('sentiment', '')).upper()
         sentiment_class = "bullish" if "BULL" in s_upper or "BUY" in s_upper else "bearish"
         display_sentiment = translate_sentiment(stock.get('sentiment'))
@@ -97,7 +101,11 @@ def build_html_template(data, news_data=None):
         """
         
     us_html = ""
+    seen_us = set()
     for stock in data.get('us_analysis', []):
+        if stock['name'] in seen_us: continue
+        seen_us.add(stock['name'])
+
         s_upper = str(stock.get('sentiment', '')).upper()
         sentiment_class = "bullish" if "BULL" in s_upper or "BUY" in s_upper else "bearish"
         display_sentiment = translate_sentiment(stock.get('sentiment'))

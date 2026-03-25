@@ -316,14 +316,14 @@ async def main():
                     news_titles = "\n".join([f"• {n['title']}" for n in s.get('news', [])])
                     report['kr_analysis'].append({
                         "name": f"{s['name']} ({s['symbol']})",
-                        "analysis": f"[최신 뉴스]\n{news_titles if news_titles else '관련 기사 없음'}",
+                        "analysis": f"{news_titles if news_titles else '관련 기사 없음'}",
                         "sentiment": "Neutral"
                     })
                 for s in data.get('us', []):
                     news_titles = "\n".join([f"• {n['title']}" for n in s.get('news', [])])
                     report['us_analysis'].append({
                         "name": f"{s['name']} ({s['symbol']})",
-                        "analysis": f"[Recent News]\n{news_titles if news_titles else 'No news available'}",
+                        "analysis": f"{news_titles if news_titles else 'No news available'}",
                         "sentiment": "Neutral"
                     })
                 
