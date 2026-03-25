@@ -164,19 +164,30 @@ async function renderList(page = 1) {
 function renderPagination(totalCount) {
     const pagination = document.getElementById('pagination-controls');
     const totalPages = Math.ceil(totalCount / pageSize);
-    if (totalPages <= 1) return;
+    // 1페이지만 있어도 번호를 표시하도록 수정 (기존: totalPages <= 1 이면 return)
+    if (totalPages === 0) {
+        pagination.innerHTML = '';
+        return;
+    }
 
     let html = '';
+    // 이전 버튼 (1페이지면 비활성화)
     html += `<button class="pg-btn" ${currentPg === 1 ? 'disabled' : ''} onclick="renderList(${currentPg - 1})">이전</button>`;
 
+    // 페이지 번호 범위 계산 (현재 페이지 기준 좌우 2개씩, 최대 5개)
     let startPage = Math.max(1, currentPg - 2);
     let endPage = Math.min(totalPages, startPage + 4);
     if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+    
+    // 최종 보정: endPage가 totalPages를 넘지 않도록
+    endPage = Math.min(totalPages, endPage);
 
+    // 페이지 버튼 생성
     for (let i = startPage; i <= endPage; i++) {
         html += `<button class="pg-btn ${i === currentPg ? 'active' : ''}" onclick="renderList(${i})">${i}</button>`;
     }
 
+    // 다음 버튼 (마지막 페이지면 비활성화)
     html += `<button class="pg-btn" ${currentPg === totalPages ? 'disabled' : ''} onclick="renderList(${currentPg + 1})">다음</button>`;
     pagination.innerHTML = html;
 }
