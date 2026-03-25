@@ -29,33 +29,48 @@ def remove_lock():
     if os.path.exists(LOCK_FILE):
         os.remove(LOCK_FILE)
 
+def select_first(soup, selectors):
+    """여러 선택자 중 첫 번째로 매칭되는 요소를 반환합니다."""
+    for selector in selectors:
+        el = soup.select_one(selector)
+        if el: return el
+    return None
+
 async def fetch_article_content(session, url):
     """
     기사 원문에서 3줄 정도의 텍스트를 추출합니다.
     """
     if not url or not url.startswith('http'): return ""
+    # 네이버 뉴스 링크(news.naver.com)인 경우와 일반 언론사 링크 구분하여 처리하면 더 좋지만, 
+    # 일반적인 접근법으로 텍스트를 추출합니다.
     try:
         async with session.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=5) as res:
             if res.status != 200: return ""
             html = await res.text()
             soup = BeautifulSoup(html, 'html.parser')
             # 불필요한 태그 제거
-            for s in soup(['script', 'style', 'header', 'footer', 'nav']): s.decompose()
+            for s in soup(['script', 'style', 'header', 'footer', 'nav', 'iframe']): s.decompose()
             
-            # 본문 텍스트 추출 시도
+            # 본문 텍스트 추출 시도 (가장 긴 텍스트 블록 위주)
             text = soup.get_text(separator='\n')
-            lines = [l.strip() for l in text.split('\n') if len(l.strip()) > 20]
+            lines = [l.strip() for l in text.split('\n') if len(l.strip()) > 30]
+            # 상단 광고나 메뉴 등을 피하기 위해 어느 정도 길이 이상의 유효한 문장만 선택
             return "\n".join(lines[:3]) # 3줄 정도만 반환
     except:
         return ""
 
 async def fetch_news_kr(session, stock_name, symbol):
     """
-    네이버 뉴스 검색 (한국 종목용) - 상세 정보 포함
+    네이버 뉴스 검색 (한국 종목용) - Fender UI 직접 타겟팅 (가장 확실한 방법)
     """
     query = f"{stock_name} 경제"
-    url = f"https://search.naver.com/search.naver?where=news&query={query}&sort=1"
-    headers = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124"}
+    url = f"https://m.search.naver.com/search.naver?where=m_news&query={query}&sort=1"
+    
+    headers = {
+        'User-Agent': "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1",
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3',
+    }
     
     try:
         async with session.get(url, headers=headers) as response:
@@ -63,103 +78,116 @@ async def fetch_news_kr(session, stock_name, symbol):
             html = await response.text()
             soup = BeautifulSoup(html, 'html.parser')
             
-            # 검색 결과 리스트 아이템 찾기
-            items = soup.select('.news_wrap.api_ani_send')
+            # 1. 제목 요소를 직접 찾기 (Fender UI 해시 클래스)
+            title_els = soup.select('a.oNXvhe7BL30eEPS64wes')
+            
+            if not title_els:
+                # 해시 클래스가 바뀌었을 가능성 대비 (폴백)
+                title_els = soup.select('.news_tit, a[class*="tit"], a[role="heading"]')
+                
+            if not title_els:
+                # [디버그용] 여전히 없으면 HTML 저장 후 종료
+                with open('.tmp/debug_naver_fail.html', 'w', encoding='utf-8') as f:
+                    f.write(html)
+                return []
             
             news = []
-            for item in items:
-                title_el = item.select_one('.news_tit')
-                if not title_el: continue
+            for t_el in title_els:
+                title = t_el.get_text().strip()
+                link = t_el.get('href')
+                if not link or not link.startswith('http'): continue
                 
-                title = title_el.get_text().strip()
-                link = title_el.get('href')
+                # 해당 제목의 부모 컨테이너 찾기 (보통 bx 또는 div)
+                container = t_el.find_parent(class_='bx') or t_el.find_parent(class_='api_ani_send') or t_el.parent.parent
                 
-                # 상세 정보 추출
+                # 2. 언론사명 추출
                 source_name = ""
-                source_el = item.select_one('.info.press')
-                if source_el: source_name = source_el.get_text().strip().replace("언론사 선정", "")
+                source_el = select_first(container, ['a.DvrfF3rvIZGLS1IFDFgg', '.info.press', '.source'])
+                if source_el: source_name = source_el.get_text().strip().split(' ')[0]
                 
+                # 3. 요약문(Snippet) 추출
                 snippet = ""
-                snippet_el = item.select_one('.api_txt_lines.dsc_txt_wrap')
+                snippet_el = select_first(container, ['a.MnqJlFvUinTUp_vJT_xc', '.dsc_txt', '.api_txt_lines'])
                 if snippet_el: snippet = snippet_el.get_text().strip()
                 
+                # 4. 썸네일 추출
                 thumbnail = ""
-                thumb_el = item.select_one('.thumb.api_get')
-                if thumb_el: thumbnail = thumb_el.get('src')
+                thumb_el = select_first(container, ['a.fender-ui_228e3bd1 img', 'img[class*="thumb"]', 'img'])
+                if thumb_el and thumb_el != t_el: # 제목 링크 자체가 이미지가 아닐 때
+                    thumbnail = thumb_el.get('src') or thumb_el.get('data-src')
                 
                 # 기사 본문 요약 (3줄) 가져오기
                 content = await fetch_article_content(session, link)
-                if not content: content = snippet # 본문 못 가져오면 스니펫으로 대체
+                if not content: content = snippet
 
-                if title and link:
-                    news.append({
-                        'title': title, 
-                        'url': link,
-                        'source_name': source_name,
-                        'snippet': snippet,
-                        'thumbnail': thumbnail,
-                        'content': content
-                    })
-                if len(news) >= 3: break # 너무 많으면 느려지므로 상위 3개만 심층 수집
+                news.append({
+                    'title': title, 
+                    'url': link,
+                    'source_name': source_name,
+                    'snippet': snippet,
+                    'thumbnail': thumbnail,
+                    'content': content
+                })
+                if len(news) >= 3: break 
+            
             return news
+    except Exception as e:
+        print(f"한국 뉴스 수집 실패 ({stock_name}): {e}")
+        return []
+    except Exception as e:
+        print(f"한국 뉴스 수집 실패 ({stock_name}): {e}")
+        return []
     except Exception as e:
         print(f"한국 뉴스 수집 실패 ({stock_name}): {e}")
         return []
 
 async def fetch_news_us(session, stock_name, symbol):
     """
-    구글 뉴스 검색 (미국 종목용) - 상세 정보 포함
+    구글 뉴스 검색 (미국 종목용) - RSS 피드 사용 (가장 안정적)
     """
-    query = f"{stock_name} Finance"
-    url = f"https://www.google.com/search?q={query}+stock+news&tbm=nws&tbs=sbd:1"
-    headers = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124"}
+    import urllib.parse
+    query = urllib.parse.quote(f"{stock_name} stock news")
+    # RSS 피드는 봇 차단이 적고 구조화된 데이터를 제공함
+    url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
     
     try:
-        async with session.get(url, headers=headers) as response:
+        async with session.get(url) as response:
             if response.status != 200: return []
-            html = await response.text()
-            soup = BeautifulSoup(html, 'html.parser')
+            xml_content = await response.text()
+            soup = BeautifulSoup(xml_content, 'xml') # XML 파서 사용
             
-            # 구글 뉴스 검색 결과 셀렉터 (G-card 형태)
-            items = soup.select('div.SoS9Cc, div.v7wZne, div[role="listitem"]')
-            
+            items = soup.find_all('item')
             news = []
             for item in items:
-                link_el = item.select_one('a')
-                title_el = item.select_one('h3, div[role="heading"]')
-                if not link_el or not title_el: continue
+                title = item.title.text if item.title else ""
+                link = item.link.text if item.link else ""
+                if not link: continue
                 
-                title = title_el.get_text().strip()
-                link = link_el.get('href')
-                if link.startswith('/url?q='):
-                    link = link.split('/url?q=')[1].split('&')[0]
+                source_name = item.source.text if item.source else "Google News"
+                pub_date = item.pubDate.text if item.pubDate else datetime.now().isoformat()
                 
-                # 상세 정보 추출
-                source_name = ""
-                source_el = item.select_one('div.Mg0Z9e, span.xNxY1c')
-                if source_el: source_name = source_el.get_text().strip()
-                
+                # Snippet (Description에서 HTML 태그 제거)
                 snippet = ""
-                snippet_el = item.select_one('div.GI74ad, div.VwiC3b')
-                if snippet_el: snippet = snippet_el.get_text().strip()
+                if item.description:
+                    snippet_soup = BeautifulSoup(item.description.text, 'html.parser')
+                    snippet = snippet_soup.get_text().strip()
                 
-                thumbnail = ""
-                thumb_el = item.select_one('img')
-                if thumb_el: thumbnail = thumb_el.get('src') or thumb_el.get('data-src')
-
-                # 기사 본문 요약 (3줄) 가져오기
+                # 상세 정보 추출 (본문 요약 및 썸네일 시도)
                 content = await fetch_article_content(session, link)
                 if not content: content = snippet
+                
+                # RSS에서는 썸네일이 바로 안 나오므로 본문에서 찾거나 빈 값
+                thumbnail = "" 
 
-                if title and link:
-                    news.append({
-                        'title': title, 
-                        'url': link,
-                        'source_name': source_name,
-                        'snippet': snippet,
-                        'thumbnail': thumbnail,
-                        'content': content
-                    })
+                news.append({
+                    'title': title, 
+                    'url': link,
+                    'source_name': source_name,
+                    'snippet': snippet,
+                    'thumbnail': thumbnail,
+                    'content': content,
+                    'timestamp': pub_date
+                })
                 if len(news) >= 3: break
             return news
     except Exception as e:
