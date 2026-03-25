@@ -73,22 +73,19 @@ async function renderList(page = 1) {
 
         body.innerHTML = '';
         
-        // 중복 제거: '날짜별 + 회사별'로 유니크하게 필터링
-        // 같은 날짜에 같은 회사가 여러 번 분석된 경우만 1개로 합치고, 날짜가 다르면 모두 보여줌
+        // 중복 제거: '날짜별 + 기업별'로 유니크하게 필터링 (하루에 한 기업당 리포트 1개)
         const uniqueEntries = [];
         const seenKeys = new Set(); 
         
         data.forEach(item => {
-            const compId = item.company_id;
-            const dateStr = new Date(item.created_at).toISOString().split('T')[0]; // YYYY-MM-DD
-            const key = `${compId}_${dateStr}`;
+            const compName = item.companies?.name || 'Unknown';
+            // 날짜만 추출 (KST 기준 처리를 위해 단순 ISO 변환 후 split)
+            const dateStr = new Date(item.created_at).toISOString().split('T')[0];
+            const key = `${compName}_${dateStr}`;
 
-            if (compId && !seenKeys.has(key)) {
-                const content = item.analysis_content || '';
-                if (content.length > 20 && !content.includes('분석 중 오류')) {
-                    uniqueEntries.push(item);
-                    seenKeys.add(key);
-                }
+            if (!seenKeys.has(key)) {
+                uniqueEntries.push(item);
+                seenKeys.add(key);
             }
         });
 
@@ -102,8 +99,10 @@ async function renderList(page = 1) {
                 month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
             });
 
-            // AI 인사이트 요약
+            // AI 분석 정보 요약 (시스템 접두어 제거 및 가독성 개선)
             let insightPreview = item.analysis_content || '분석 내용 없음';
+            // 만약 "[AI 텍스트 분석 지연...]" 등의 문구가 남아있다면 제거
+            insightPreview = insightPreview.replace(/\[AI 텍스트 분석 지연[^\]]*\]/g, '').trim();
             insightPreview = insightPreview.replace(/[#*`>]/g, '').replace(/\n+/g, ' ').trim();
             if (insightPreview.length > 80) insightPreview = insightPreview.substring(0, 80) + '...';
 
