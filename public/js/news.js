@@ -17,7 +17,7 @@ function getParam(name) {
 }
 
 let currentPg = 1;
-const pageSize = 15;
+const pageSize = 50;
 
 async function sbGet(table, query, headers = {}) {
     const url = `${SUPABASE_URL}/rest/v1/${table}?${query}`;
@@ -60,9 +60,6 @@ async function renderList(page = 1) {
     // 3. 데이터를 채울 테이블 바디와 페이지네이션 컨트롤 요소 참조
     const body = document.getElementById('news-list-body');
     const pagination = document.getElementById('pagination-controls');
-    
-    // 4. 한 페이지에 보여줄 데이터 개수 설정
-    const pageSize = 50; 
     
     // 5. 로딩 중임을 사용자에게 알리고 이전 페이지네이션 버튼 제거
     body.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:50px;">분석 데이터를 불러오는 중입니다...</td></tr>';
