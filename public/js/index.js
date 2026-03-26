@@ -116,52 +116,69 @@ async function loadNews() {
     };
 
     try {
-        // stock_analysis 테이블에서 최신 AI 분석 데이터를 가져옴
-        const query = "select=*,companies(name,symbol,per,pbr,marcap)&order=created_at.desc&limit=30";
-        const allAnalysis = await sbGet('stock_analysis', query);
+        // 1. 최근 기사가 있는 회사들을 먼저 가져옵니다 (최신 순)
+        const newsQuery = "select=*,companies(name,symbol)&order=published_at.desc&limit=50";
+        const allArticles = await sbGet('news_articles', newsQuery);
 
-        if (!allAnalysis || allAnalysis.length === 0) {
-            grid.innerHTML = '<div class="loading-state">현재 표시할 AI 분석 데이터가 없습니다.</div>';
+        if (!allArticles || allArticles.length === 0) {
+            grid.innerHTML = '<div class="loading-state">현재 표시할 최신 기사가 없습니다.</div>';
             return;
         }
 
-        // 중복 회사 제거 (가장 최신 분석만 선택)
-        const uniqueCompanies = new Map();
-        const filtered = [];
-        
-        for (const item of allAnalysis) {
-            const compName = item.companies?.name || item.company_id;
-            if (!uniqueCompanies.has(compName)) {
-                uniqueCompanies.set(compName, true);
-                filtered.push(item);
+        // 2. 중복 회사 제거 (회당 1개만 노출)
+        const uniqueCompaniesNews = new Map();
+        const companiesToFetch = [];
+        for (const art of allArticles) {
+            if (!uniqueCompaniesNews.has(art.company_id)) {
+                uniqueCompaniesNews.set(art.company_id, art);
+                companiesToFetch.push(art.company_id);
             }
-            if (filtered.length === 6) break;
+            if (companiesToFetch.length === 6) break;
         }
 
         grid.innerHTML = '';
 
-        for (const item of filtered) {
-            const companyName = item.companies?.name || 'N/A';
-            const symbol = item.companies?.symbol || '';
-            const sent = (item.sentiment || 'neutral').toLowerCase();
-            const sentLabel = sentimentMap[sent] || '⚖️ 중립';
-            const sentCls = sentimentClass[sent] || 'neutral';
-            
-            // AI 분석 내용에서 처음 150자를 표시
-            let summary = item.analysis_content || '분석 내용을 불러올 수 없습니다.';
+        // 3. 각 회사에 대한 최신 AI 분석 정보를 가져옵니다.
+        for (const companyId of companiesToFetch) {
+            const latestArt = uniqueCompaniesNews.get(companyId);
+            const companyName = latestArt.companies?.name || 'N/A';
+            const symbol = latestArt.companies?.symbol || '';
+            const newsId = latestArt.id;
+
+            // 해당 회사의 최신 AI 분석 정보 확인
+            const anaQuery = `company_id=eq.${companyId}&order=created_at.desc&limit=1`;
+            const analysisList = await sbGet('stock_analysis', anaQuery);
+            const item = (analysisList && analysisList.length > 0) ? analysisList[0] : null;
+
+            let summary = '';
+            let sentLabel = '⚖️ 중립';
+            let sentCls = 'neutral';
+            let dateStr = '';
+            let isAiAnalysed = false;
+
+            if (item && item.analysis_content && item.analysis_content.trim() !== '') {
+                // AI 분석이 있는 경우
+                summary = item.analysis_content;
+                const sent = (item.sentiment || 'neutral').toLowerCase();
+                sentLabel = sentimentMap[sent] || '⚖️ 중립';
+                sentCls = sentimentClass[sent] || 'neutral';
+                dateStr = new Date(item.created_at).toLocaleDateString('ko-KR', {
+                    year: 'numeric', month: 'short', day: 'numeric'
+                });
+                isAiAnalysed = true;
+            } else {
+                // AI 분석이 없는 경우 -> 뉴스 타이틀 사용
+                summary = latestArt.title || '뉴스 제목이 없습니다.';
+                dateStr = new Date(latestArt.published_at).toLocaleDateString('ko-KR', {
+                    year: 'numeric', month: 'short', day: 'numeric'
+                });
+            }
+
             // Markdown 제거 (간단히)
             summary = summary.replace(/[#*_~`>\[\]]/g, '').replace(/\n+/g, ' ').trim();
             if (summary.length > 150) summary = summary.substring(0, 150) + '...';
 
-            const date = new Date(item.created_at).toLocaleDateString('ko-KR', {
-                year: 'numeric', month: 'short', day: 'numeric'
-            });
-
-            // 해당 회사의 최신 기사 ID를 찾아서 링크 연결
-            const newsQuery = `company_id=eq.${item.company_id}&order=published_at.desc&limit=1&select=id`;
-            const newsArticles = await sbGet('news_articles', newsQuery);
-            const newsId = newsArticles && newsArticles.length > 0 ? newsArticles[0].id : null;
-            const linkHref = newsId ? `news.html?id=${newsId}` : '#';
+            const linkHref = `news.html?id=${isAiAnalysed ? item.id : 'art_' + newsId}`;
 
             const cardHtml = `
                 <div class="card" onclick="location.href='${linkHref}'" style="cursor:pointer">
@@ -172,8 +189,8 @@ async function loadNews() {
                     <div class="divider"></div>
                     <div class="summary">${summary}</div>
                     <div class="card-footer">
-                        <div class="indicators">🤖 AI 분석</div>
-                        <div class="post-date">${date}</div>
+                        <div class="indicators">${isAiAnalysed ? '🤖 AI 분석' : '📰 최근 소식'}</div>
+                        <div class="post-date">${dateStr}</div>
                     </div>
                 </div>
             `;
