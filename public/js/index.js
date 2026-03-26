@@ -181,7 +181,7 @@ async function loadNews() {
             const linkHref = `news.html?id=${isAiAnalysed ? item.id : 'art_' + newsId}`;
 
             const cardHtml = `
-                <div class="card" onclick="location.href='${linkHref}'" style="cursor:pointer">
+                <a href="${linkHref}" class="card" style="text-decoration: none; color: inherit; display: flex; flex-direction: column;">
                     <div class="card-top-row">
                         <div class="company-name">${companyName} (${symbol})</div>
                         <span class="sentiment-badge ${sentCls}">${sentLabel}</span>
@@ -189,10 +189,10 @@ async function loadNews() {
                     <div class="divider"></div>
                     <div class="summary">${summary}</div>
                     <div class="card-footer">
-                        <div class="indicators">${isAiAnalysed ? '🤖 AI 분석' : '📰 최근 소식'}</div>
+                        <div class="indicators">${isAiAnalysed ? 'AI 분석' : '최근소식'}</div>
                         <div class="post-date">${dateStr}</div>
                     </div>
-                </div>
+                </a>
             `;
             grid.insertAdjacentHTML('beforeend', cardHtml);
         }
