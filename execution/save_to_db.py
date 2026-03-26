@@ -43,15 +43,14 @@ def get_supabase_client():
     return supabase_url, {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
-        "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates"
+        "Content-Type": "application/json"
     }
 
 def save_stocks():
     """1단계 및 2단계: 기업 정보와 일일 가격 지표(History)를 저장합니다."""
     if not os.path.exists('.tmp/market_data.json'):
-        print("상태: market_data.json 파일이 없어 저장을 생략합니다.")
-        return False
+        print("❌ 오류: market_data.json 파일이 없어 저장을 실패했습니다. (1단계 수집 미완료)")
+        sys.exit(1)
 
     with open('.tmp/market_data.json', 'r', encoding='utf-8') as f:
         market_data = json.load(f)
@@ -100,8 +99,8 @@ def save_stocks():
 def save_news():
     """3단계 및 4단계: 수집한 뉴스 기사를 저장합니다."""
     if not os.path.exists('.tmp/news_data.json'):
-        print("상태: news_data.json 파일이 없어 저장을 생략합니다.")
-        return False
+        print("❌ 오류: news_data.json 파일이 없어 저장을 실패했습니다. (3단계 뉴스 수집 미완료)")
+        sys.exit(1)
 
     with open('.tmp/news_data.json', 'r', encoding='utf-8') as f:
         news_data = json.load(f)
@@ -142,8 +141,8 @@ def save_news():
 def save_analysis():
     """5단계 및 6단계: AI 분석 결과를 저장합니다."""
     if not os.path.exists('.tmp/report.json'):
-        print("상태: report.json 파일이 없어 저장을 생략합니다.")
-        return False
+        print("❌ 오류: report.json 파일이 없어 저장을 실패했습니다. (5단계 AI 분석 미완료)")
+        sys.exit(1)
 
     with open('.tmp/report.json', 'r', encoding='utf-8') as f:
         report = json.load(f)
@@ -169,6 +168,10 @@ def save_analysis():
         all_analysis = report.get('kr_analysis', []) + report.get('us_analysis', [])
         
         # 이전 단계에서 가져온 market_data.json을 참고하여 심볼 매칭
+        if not os.path.exists('.tmp/market_data.json'):
+            print("❌ 오류: 분석 저장 중 market_data.json을 찾을 수 없습니다.")
+            sys.exit(1)
+
         with open('.tmp/market_data.json', 'r', encoding='utf-8') as f:
             m_data = json.load(f)
             stocks_map = {s['name']: s['symbol'] for s in (m_data['kr'] + m_data['us'])}

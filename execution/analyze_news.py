@@ -109,20 +109,8 @@ async def main():
             report = await generate_analysis(session, news_data)
             
             if not report:
-                # API 실패 시 폴백 리포트 생성
-                report = {
-                    "status": "success",
-                    "market_summary": "⚠️ AI 분석 지연 (API 응답 실패). 수집된 최신 뉴스를 로우 데이터 형태로 전송합니다.",
-                    "prediction": "최신 뉴스 헤드라인을 직접 참고하여 보수적인 관점으로 시장에 대응하시기 바랍니다.",
-                    "kr_analysis": [],
-                    "us_analysis": []
-                }
-                for s in news_data.get('kr', []):
-                    titles = "\n".join([f"• {n['title']}" for n in s.get('news', [])])
-                    report['kr_analysis'].append({"name": s['name'], "analysis": titles or "관련 기사 없음", "sentiment": "Neutral"})
-                for s in news_data.get('us', []):
-                    titles = "\n".join([f"• {n['title']}" for n in s.get('news', [])])
-                    report['us_analysis'].append({"name": s['name'], "analysis": titles or "No news available", "sentiment": "Neutral"})
+                print("❌ 오류: AI 분석 리포트 생성을 실패했습니다. (Gemini API 응답 없음)")
+                sys.exit(1)
 
             with open('.tmp/report.json', 'w', encoding='utf-8') as f:
                 json.dump(report, f, ensure_ascii=False, indent=2)
