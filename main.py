@@ -34,14 +34,17 @@ def db_log(step_name, status, message, error_detail=None, execution_time=None, l
         "status": status,
         "log_message": message,
         "error_detail": error_detail,
-        "execution_time": execution_time,
-        "log_content": log_content # 상세 실행 내용을 여기에 담아 DB로 보냅니다.
+        "execution_time": execution_time
+        # "log_content": log_content # DB 컬럼 추가 전까지는 주석 처리 (PGRST204 방지)
     }
     
     try:
-        requests.post(url, headers=headers, json=payload)
+        r = requests.post(url, headers=headers, json=payload)
+        r.raise_for_status() # HTTP 오류 발생 시 예외 발생
     except Exception as e:
-        print(f"DB 로그 기록 실패: {e}")
+        print(f"DB 로그 기록 실패 ({step_name}): {e}")
+        if hasattr(e, 'response') and e.response is not None:
+             print(f"상세 내용: {e.response.text}")
 
 def db_update_summary(status, message, success_count=0, fail_count=0):
     """
@@ -67,14 +70,17 @@ def db_update_summary(status, message, success_count=0, fail_count=0):
         "last_status": status,
         "summary_message": message,
         "success_count": success_count,
-        "fail_count": fail_count,
-        "log_content": full_logs
+        "fail_count": fail_count
+        # "log_content": full_logs # DB 컬럼 추가 전까지는 주석 처리
     }
     
     try:
-        requests.post(url, headers=headers, json=payload)
+        r = requests.post(url, headers=headers, json=payload)
+        r.raise_for_status()
     except Exception as e:
         print(f"최종 요약 보고 실패: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+             print(f"상세 내용: {e.response.text}")
 
 def run_script(script_path, step_name, args=None):
     """
@@ -113,7 +119,7 @@ def run_script(script_path, step_name, args=None):
         if return_code != 0:
             raise subprocess.CalledProcessError(return_code, script_path, output=full_stdout)
             
-        elapsed = f"{int(time.time() - start_time)}초"
+        elapsed = f"{int(time.time() - start_time)} seconds"
         db_log(step_name, "SUCCESS", f"{step_name} 성공", execution_time=elapsed, log_content=full_stdout)
         return True, full_stdout
         

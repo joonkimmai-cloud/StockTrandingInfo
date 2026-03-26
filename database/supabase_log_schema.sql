@@ -4,11 +4,12 @@
 -- 1. Table for Detailed Execution Logs
 CREATE TABLE IF NOT EXISTS public.execution_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    step_name TEXT NOT NULL, -- 'Data Collection', 'AI Analysis', 'DB Sync', 'Email Dispatch'
-    status TEXT NOT NULL,    -- 'SUCCESS', 'FAIL', 'RUNNING'
+    step_name TEXT NOT NULL,
+    status TEXT NOT NULL,
     log_message TEXT,
     error_detail TEXT,
-    execution_time INTERVAL, -- 소요 시간
+    execution_time INTERVAL,
+    log_content TEXT, -- 상세 실행 내용 (stdout 등)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -16,10 +17,11 @@ CREATE TABLE IF NOT EXISTS public.execution_logs (
 CREATE TABLE IF NOT EXISTS public.batch_summary (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     last_run_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    last_status TEXT NOT NULL, -- 'SUCCESS', 'PARTIAL_SUCCESS', 'FAIL'
+    last_status TEXT NOT NULL,
     success_count INTEGER DEFAULT 0,
     fail_count INTEGER DEFAULT 0,
     summary_message TEXT,
+    log_content TEXT, -- 전체 실행 로그 요약
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
