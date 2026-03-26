@@ -103,13 +103,15 @@ async def generate_analysis(session, news_data):
         2. 시장 전반의 요약과 향후 증시 예측 (에널리스트 톤).
         3. Sentiment (Bullish/Bearish) 명시.
         4. 결과를 반드시 JSON 구조로만 출력하세요.
+        5. 분석 대상 종목의 symbol을 데이터에서 찾아 반드시 포함해 주세요.
         
         [JSON 구조]
         {{
             "market_summary": "...",
-            "kr_analysis": [ {{ "name": "...", "analysis": "...", "sentiment": "Bullish/Bearish" }} ],
-            "us_analysis": [ {{ "name": "...", "analysis": "...", "sentiment": "Bullish/Bearish" }} ],
-            "prediction": "..."
+            "investment_strategy": "...",
+            "prediction": "...",
+            "kr_analysis": [ {{ "name": "...", "symbol": "...", "analysis": "...", "sentiment": "Bullish/Bearish" }} ],
+            "us_analysis": [ {{ "name": "...", "symbol": "...", "analysis": "...", "sentiment": "Bullish/Bearish" }} ]
         }}
         """
         

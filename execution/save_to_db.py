@@ -43,7 +43,8 @@ def get_supabase_client():
     return supabase_url, {
         "apikey": supabase_key,
         "Authorization": f"Bearer {supabase_key}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
     }
 
 def save_stocks():
@@ -156,15 +157,23 @@ def save_analysis():
     market_payload = {
         "report_date": today,
         "market_summary": report.get('market_summary', ''),
+        "investment_strategy": report.get('investment_strategy', report.get('prediction', 'No strategy provided.')),
         "prediction": report.get('prediction', ''),
         "created_at": datetime.now(KST).isoformat()
     }
+    print(f"  * POST market_reports (date: {today})...")
     mr_res = requests.post(f"{url}/rest/v1/market_reports?on_conflict=report_date", headers=headers, json=market_payload)
+    print(f"    - POST Status: {mr_res.status_code}")
+    if mr_res.status_code not in [200, 201, 204]:
+        print(f"    - POST Error: {mr_res.text}")
     
     # 2. 개별 종목 분석 내역 저장
     get_mr = requests.get(f"{url}/rest/v1/market_reports?report_date=eq.{today}&select=id", headers=headers)
+    print(f"  * GET market_reports (date: {today}) Status: {get_mr.status_code}")
+    
     if get_mr.status_code == 200 and get_mr.json():
         reportId = get_mr.json()[0]['id']
+        print(f"    - Found reportId: {reportId}")
         all_analysis = report.get('kr_analysis', []) + report.get('us_analysis', [])
         
         # 이전 단계에서 가져온 market_data.json을 참고하여 심볼 매칭
@@ -177,9 +186,11 @@ def save_analysis():
             stocks_map = {s['name']: s['symbol'] for s in (m_data['kr'] + m_data['us'])}
 
         for item in all_analysis:
-            # 이름에서 심볼 추출 시도
-            name_only = item['name'].split(' (')[0] if ' (' in item['name'] else item['name']
-            symbol = stocks_map.get(name_only) or item.get('symbol')
+            # AI 결과에 직접 포함된 심볼 사용 (없으면 이름 기반 매칭)
+            symbol = item.get('symbol')
+            if not symbol:
+                name_only = item['name'].split(' (')[0] if ' (' in item['name'] else item['name']
+                symbol = stocks_map.get(name_only)
             
             if symbol:
                 get_c = requests.get(f"{url}/rest/v1/companies?symbol=eq.{symbol}&select=id", headers=headers)
@@ -192,7 +203,13 @@ def save_analysis():
                         "sentiment": item.get('sentiment', 'Neutral'),
                         "created_at": datetime.now(KST).isoformat()
                     }
-                    requests.post(f"{url}/rest/v1/stock_analysis", headers=headers, json=sa_payload)
+                    sa_res = requests.post(f"{url}/rest/v1/stock_analysis", headers=headers, json=sa_payload)
+                    if sa_res.status_code not in [200, 201, 204]:
+                        print(f"  * [오류] {symbol} 분석 저장 실패: {sa_res.text}")
+                else:
+                    print(f"  * [오류] {symbol} 종목 정보를 DB에서 찾을 수 없습니다.")
+            else:
+                print(f"  * [오류] {item['name']}에 대한 심볼 매칭 실패.")
                     
     print("AI 분석 데이터 저장 완료.")
     return True
