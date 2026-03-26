@@ -13,6 +13,7 @@ KST = ZoneInfo('Asia/Seoul')
 # 2. 환경 변수 로드: 숨겨진 설정값(.env 파일)들을 프로그램으로 가져옵니다.
 from dotenv import load_dotenv
 load_dotenv()
+from execution.utils import *
 
 # 3. 로그 파일 설정: 프로그램이 일한 기록을 남길 장소(.tmp 폴더의 execution.log)를 만듭니다.
 LOG_FILE = '.tmp/execution.log'
@@ -22,40 +23,30 @@ def db_log(step_name, status, message, error_detail=None, execution_time=None, l
     """
     [기능] 각 단계가 끝날 때마다 상태와 상세 콘솔 기록을 Supabase 데이터베이스에 기록합니다.
     """
-    url = f"{os.getenv('SUPABASE_URL')}/rest/v1/execution_logs"
-    headers = {
-        "apikey": os.getenv("SUPABASE_KEY"),
-        "Authorization": f"Bearer {os.getenv('SUPABASE_KEY')}",
-        "Content-Type": "application/json"
-    }
-    
+    url, headers = get_supabase_config()
+    if not url: return
+
     payload = {
         "step_name": step_name,
         "status": status,
         "log_message": message,
         "error_detail": error_detail,
-        "execution_time": execution_time
-        # "log_content": log_content # DB 컬럼 추가 전까지는 주석 처리 (PGRST204 방지)
+        "execution_time": execution_time,
+        "log_content": log_content # DB 컬럼이 존재하므로 주석 해제하여 상세 로그 기록 활성화
     }
     
     try:
-        r = requests.post(url, headers=headers, json=payload)
-        r.raise_for_status() # HTTP 오류 발생 시 예외 발생
+        r = requests.post(f"{url}/rest/v1/execution_logs", headers=headers, json=payload)
+        r.raise_for_status() 
     except Exception as e:
         print(f"DB 로그 기록 실패 ({step_name}): {e}")
-        if hasattr(e, 'response') and e.response is not None:
-             print(f"상세 내용: {e.response.text}")
 
 def db_update_summary(status, message, success_count=0, fail_count=0):
     """
     [기능] 오늘 전체 작업의 최종 요약 보고서를 DB에 기록합니다.
     """
-    url = f"{os.getenv('SUPABASE_URL')}/rest/v1/batch_summary"
-    headers = {
-        "apikey": os.getenv("SUPABASE_KEY"),
-        "Authorization": f"Bearer {os.getenv('SUPABASE_KEY')}",
-        "Content-Type": "application/json"
-    }
+    url, headers = get_supabase_config()
+    if not url: return
     
     full_logs = ""
     if os.path.exists(LOG_FILE):
@@ -70,12 +61,13 @@ def db_update_summary(status, message, success_count=0, fail_count=0):
         "last_status": status,
         "summary_message": message,
         "success_count": success_count,
-        "fail_count": fail_count
-        # "log_content": full_logs # DB 컬럼 추가 전까지는 주석 처리
+        "fail_count": fail_count,
+        "log_content": full_logs # 전체 실행 로그 요약 기록 활성화
     }
+
     
     try:
-        r = requests.post(url, headers=headers, json=payload)
+        r = requests.post(f"{url}/rest/v1/batch_summary", headers=headers, json=payload)
         r.raise_for_status()
     except Exception as e:
         print(f"최종 요약 보고 실패: {e}")

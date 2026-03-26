@@ -103,6 +103,11 @@ async function loadNews() {
     const grid = document.getElementById('news-grid');
     if (!grid) return;
 
+    // 0. 스켈레톤 UI 표시
+    grid.innerHTML = '<div class="loading-state">' + 
+        Array(6).fill('<div class="skeleton"></div>').join('') + 
+    '</div>';
+
     // 감성 한글 매핑
     const sentimentMap = {
         'bullish': '📈 상승 우세',
@@ -121,7 +126,7 @@ async function loadNews() {
         const allArticles = await sbGet('news_articles', newsQuery);
 
         if (!allArticles || allArticles.length === 0) {
-            grid.innerHTML = '<div class="loading-state">현재 표시할 최신 기사가 없습니다.</div>';
+            grid.innerHTML = '<div class="error-state" style="background:#f8f9fa;border-color:#eee;color:#666;">현재 표시할 최신 기사가 없습니다.</div>';
             return;
         }
 
@@ -136,19 +141,30 @@ async function loadNews() {
             if (companiesToFetch.length === 6) break;
         }
 
-        grid.innerHTML = '';
+        // 3. 각 회사에 대한 최신 AI 분석 정보를 '한번에' 가져옵니다 (Batch Fetch)
+        const anaQuery = `company_id=in.(${companiesToFetch.join(',')})&order=created_at.desc`;
+        const allAnalysis = await sbGet('stock_analysis', anaQuery);
+        
+        // 최신 분석 정보를 맵에 저장 (회사별 1개)
+        const analysisMap = new Map();
+        if (allAnalysis && allAnalysis.length > 0) {
+            allAnalysis.forEach(ana => {
+                if (!analysisMap.has(ana.company_id)) {
+                    analysisMap.set(ana.company_id, ana);
+                }
+            });
+        }
 
-        // 3. 각 회사에 대한 최신 AI 분석 정보를 가져옵니다.
+        grid.innerHTML = ''; // 스켈레톤 제거
+
         for (const companyId of companiesToFetch) {
             const latestArt = uniqueCompaniesNews.get(companyId);
             const companyName = latestArt.companies?.name || 'N/A';
             const symbol = latestArt.companies?.symbol || '';
             const newsId = latestArt.id;
 
-            // 해당 회사의 최신 AI 분석 정보 확인
-            const anaQuery = `company_id=eq.${companyId}&order=created_at.desc&limit=1`;
-            const analysisList = await sbGet('stock_analysis', anaQuery);
-            const item = (analysisList && analysisList.length > 0) ? analysisList[0] : null;
+            // 맵에서 미리 가져온 분석 정보 확인
+            const item = analysisMap.get(companyId);
 
             let summary = '';
             let sentLabel = '⚖️ 중립';
@@ -199,7 +215,12 @@ async function loadNews() {
 
     } catch (err) {
         console.error('loadNews error:', err);
-        grid.innerHTML = '<div class="loading-state">데이터를 불러오는 중 오류가 발생했습니다.</div>';
+        grid.innerHTML = `
+            <div class="error-state">
+                <p>데이터를 불러오는 중 오류가 발생했습니다.</p>
+                <button class="retry-btn" onclick="loadNews()">다시 시도</button>
+            </div>
+        `;
     }
 }
 

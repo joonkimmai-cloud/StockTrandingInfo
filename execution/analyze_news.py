@@ -3,33 +3,11 @@ import sys
 import json
 import asyncio
 import aiohttp
-from datetime import datetime
-from zoneinfo import ZoneInfo
-from dotenv import load_dotenv
-
-KST = ZoneInfo('Asia/Seoul')
-load_dotenv()
-
-# [기능] 다른 프로그램이 실행 중인지 확인하기 위한 락(Lock) 기능을 설정합니다.
-LOCK_FILE = '.tmp/analyze_news.lock'
-
-def check_lock():
-    os.makedirs('.tmp', exist_ok=True)
-    if os.path.exists(LOCK_FILE):
-        file_time = os.path.getmtime(LOCK_FILE)
-        if (datetime.now().timestamp() - file_time) < 3600:
-            print("⚠️ AI 분석이 이미 진행 중입니다.")
-            sys.exit(0)
-    with open(LOCK_FILE, 'w', encoding='utf-8') as f:
-        f.write(str(os.getpid()))
-
-def remove_lock():
-    if os.path.exists(LOCK_FILE):
-        os.remove(LOCK_FILE)
+from utils import *
 
 def get_api_key_with_rotation():
     state_file = '.tmp/api_key_state.json'
-    today = datetime.now(KST).strftime('%Y-%m-%d')
+    today = get_kst_now().strftime('%Y-%m-%d')
     state = {'current_index': 1, 'last_reset_date': today}
     
     if os.path.exists(state_file):
@@ -76,9 +54,7 @@ async def get_valid_gemini_model(session, api_key):
     return "models/gemini-1.5-flash"
 
 async def generate_analysis(session, news_data):
-    """
-    수집된 뉴스 데이터를 기반으로 AI 분석 리포트를 생성합니다. (API 로테이션 지원)
-    """
+    """수집된 뉴스 데이터를 기반으로 AI 분석 리포트를 생성합니다."""
     print("[5단계] AI 분석 리포트 생성 시작...")
     
     while True:
@@ -133,32 +109,32 @@ async def generate_analysis(session, news_data):
                 save_api_key_state(state)
                 return json.loads(text)
         except Exception as e:
-            print(f"AI 분석 중 오류 발생 (Key #{state['current_index']}): {e}")
+            log_error(f"AI 분석 중 오류 (Key #{state['current_index']})", e)
             if rotate_api_key(state): continue
             return None
 
 async def check_existing_analysis(session):
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
-    if not supabase_url or not supabase_key: return None
-    headers = {"apikey": supabase_key, "Authorization": f"Bearer {supabase_key}"}
-    today = datetime.now(KST).strftime('%Y-%m-%d')
-    url = f"{supabase_url}/rest/v1/market_reports?report_date=eq.{today}&select=*"
+    url, headers = get_supabase_config()
+    if not url: return None
+    today = get_kst_now().strftime('%Y-%m-%d')
+    query_url = f"{url}/rest/v1/market_reports?report_date=eq.{today}&select=*"
     try:
-        async with session.get(url, headers=headers) as resp:
+        async with session.get(query_url, headers=headers) as resp:
             if resp.status == 200:
                 data = await resp.json()
-                if len(data) > 0: return True
+                return len(data) > 0
     except: pass
     return False
 
 async def main():
-    check_lock()
+    lock = BatchLock("analyze_news")
+    if not lock.acquire(): return
+    
     try:
         print("[5단계] AI 분석 시작...")
         if not os.path.exists('.tmp/news_data.json'):
             print("❌ 오류: 뉴스 데이터 파일이 없습니다. (3단계 뉴스 수집 미완료)")
-            sys.exit(1)
+            return
 
         with open('.tmp/news_data.json', 'r', encoding='utf-8') as f:
             news_data = json.load(f)
@@ -169,20 +145,18 @@ async def main():
                 return
 
             report = await generate_analysis(session, news_data)
-            
             if not report:
-                print("❌ 오류: AI 분석 리포트 생성을 실패했습니다. (Gemini API 응답 없음)")
-                sys.exit(1)
+                print("❌ 오류: AI 분석 리포트 생성을 실패했습니다.")
+                return
 
             with open('.tmp/report.json', 'w', encoding='utf-8') as f:
                 json.dump(report, f, ensure_ascii=False, indent=2)
 
         print("[5단계] AI 분석 완료 (.tmp/report.json)")
     except Exception as e:
-        print(f"❌ 오류: 대장 함수 실행 중 오류 발생: {e}")
-        sys.exit(1)
+        log_error("AI 분석 메인", e)
     finally:
-        remove_lock()
+        lock.release()
 
 if __name__ == "__main__":
     asyncio.run(main())

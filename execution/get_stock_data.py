@@ -4,35 +4,14 @@ import pandas as pd
 import yfinance as yf
 import FinanceDataReader as fdr
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor, as_completed
-KST = ZoneInfo('Asia/Seoul')
-from dotenv import load_dotenv
-
-load_dotenv()
-
-LOCK_FILE = '.tmp/batch.lock'
-
-def check_lock():
-    os.makedirs('.tmp', exist_ok=True)
-    if os.path.exists(LOCK_FILE):
-        # 1시간 이상 된 락 파일은 무시 (데드락 방지용)
-        file_time = os.path.getmtime(LOCK_FILE)
-        if (datetime.now().timestamp() - file_time) < 3600:
-            print("⚠️ [보안] 배치가 이미 실행 중입니다. 중복 실행을 방지하기 위해 종료합니다.")
-            sys.exit(0)
-    with open(LOCK_FILE, 'w', encoding='utf-8') as f:
-        f.write(str(os.getpid()))
-
-def remove_lock():
-    if os.path.exists(LOCK_FILE):
-        os.remove(LOCK_FILE)
+from utils import *
 
 def fetch_single_kr_stock(row):
     symbol = row['Code']
     name = row['Name']
     try:
-        df = fdr.DataReader(symbol, (datetime.now(KST) - timedelta(days=35)).strftime('%Y-%m-%d'))
+        df = fdr.DataReader(symbol, (get_kst_now() - timedelta(days=35)).strftime('%Y-%m-%d'))
         if len(df) < 21: return None
         
         avg_vol = df['Volume'].iloc[:-1].tail(20).mean()
@@ -78,7 +57,7 @@ def fetch_single_us_stock(row):
     symbol = row['Symbol']
     name = row['Name']
     try:
-        df = fdr.DataReader(symbol, (datetime.now(KST) - timedelta(days=35)).strftime('%Y-%m-%d'))
+        df = fdr.DataReader(symbol, (get_kst_now() - timedelta(days=35)).strftime('%Y-%m-%d'))
         if len(df) < 21: return None
         
         avg_vol = df['Volume'].iloc[:-1].tail(20).mean()
@@ -105,11 +84,9 @@ def fetch_single_us_stock(row):
 
 def get_relative_volume_us():
     print("Fetching US market data (S&P 500) with ThreadPool...")
-    # NASDAQ 대신 S&P 500 리스트 활용 (약 500개 종목)
     sp500 = fdr.StockListing('S&P500')
     
     results = []
-    # 500개 종목에 대해 병렬로 RVOL 계산 (S&P500은 거래량이 전반적으로 많아 유리함)
     with ThreadPoolExecutor(max_workers=20) as executor:
         futures = [executor.submit(fetch_single_us_stock, row) for _, row in sp500.iterrows()]
         for future in as_completed(futures):
@@ -129,7 +106,6 @@ def fetch_additional_info(stock):
         ticker_obj = yf.Ticker(y_ticker)
         info = ticker_obj.info
         
-        # 한국 주식은 KQ 재시도
         if market in ['KOSPI', 'KOSDAQ', 'KRX', 'KR'] and ('longBusinessSummary' not in info and 'enterpriseValue' not in info):
             y_ticker = f"{symbol}.KQ"
             info = yf.Ticker(y_ticker).info
@@ -170,27 +146,19 @@ def fetch_additional_info(stock):
             'enterprise_value': int(ev) if ev else None
         })
     except Exception as e:
-        # print(f"Failed to fetch additional info for {stock['symbol']}: {e}")
         stock.update({
-            'sector': None,
-            'industry': None,
-            'business_summary': "",
-            'revenue': None,
-            'operating_margins': None,
-            'net_income': None,
-            'website': None,
-            'city': None,
-            'ceo': None,
-            'founded_date': None,
-            'listing_date': stock.get('listing_date'),
-            'annual_price_change': None,
-            'expected_return': None,
-            'enterprise_value': None
+            'sector': None, 'industry': None, 'business_summary': "",
+            'revenue': None, 'operating_margins': None, 'net_income': None,
+            'website': None, 'city': None, 'ceo': None, 'founded_date': None,
+            'listing_date': stock.get('listing_date'), 'annual_price_change': None,
+            'expected_return': None, 'enterprise_value': None
         })
     return stock
 
 def main():
-    check_lock()
+    lock = BatchLock("get_stock_data")
+    if not lock.acquire(): return
+    
     try:
         print("[1단계] 전일 주식시장에서 종목 추출 시작 (한국, 미국)")
         kr_data = get_relative_volume_kr()
@@ -206,10 +174,9 @@ def main():
             
         print(f"  - 한국 시장 {len(kr_data)}개 종목 추출 및 상세정보 완료")
         print(f"  - 미국 시장 {len(us_data)}개 종목 추출 및 상세정보 완료")
-        print("[1단계] 종목 추출 종료")
         
         output = {
-        'timestamp': datetime.now(KST).isoformat(),
+            'timestamp': get_kst_now().isoformat(),
             'kr': kr_data,
             'us': us_data
         }
@@ -219,10 +186,9 @@ def main():
             json.dump(output, f, ensure_ascii=False, indent=2)
         print("Market data saved to .tmp/market_data.json")
     except Exception as e:
-        print(f"⚠️ [보안] 데이터 수집 중 시스템 내부 오류가 발생했습니다. (상세 내용은 로그 참조)")
+        log_error("종목 추출 메인", e)
     finally:
-        remove_lock()
+        lock.release()
 
 if __name__ == "__main__":
     main()
-
