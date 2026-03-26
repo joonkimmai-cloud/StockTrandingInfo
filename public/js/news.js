@@ -215,6 +215,11 @@ async function renderDetail(id) {
         document.getElementById('detail-company').innerText = ana.companies?.name || 'N/A';
         document.getElementById('detail-title').innerText = `${ana.companies?.name || '종목'} ${isOnlyNews ? '최신 소식' : 'AI 투자 인사이트 리포트'}`;
         
+        // 기업 기본 정보 표시
+        if (ana.companies) {
+            displayCompanyInfo(ana.companies);
+        }
+
         document.getElementById('detail-date').innerText = new Date(ana.created_at).toLocaleString('ko-KR', {
             year: 'numeric', month: 'long', day: 'numeric'
         });
@@ -286,6 +291,58 @@ async function renderDetail(id) {
         alert('상세를 불러오는 중 오류가 발생했습니다.');
         goToList();
     }
+}
+
+function displayCompanyInfo(company) {
+    const card = document.getElementById('company-info-card');
+    if (!card) return;
+
+    const formatCurrency = (val, market) => {
+        if (!val) return 'N/A';
+        if (market === 'KR') {
+            return formatKoreanUnit(val) + '원';
+        } else {
+            return '$' + new Intl.NumberFormat('en-US').format(val);
+        }
+    };
+
+    const formatKoreanUnit = (num) => {
+        if (!num) return '0';
+        const units = ['', '만', '억', '조'];
+        let result = '';
+        let count = 0;
+        let temp = BigInt(num);
+        
+        if (temp === 0n) return '0';
+
+        while (temp > 0n && count < units.length) {
+            let mod = temp % 10000n;
+            if (mod > 0n) {
+                result = mod.toString() + units[count] + ' ' + result;
+            }
+            temp = temp / 10000n;
+            count++;
+        }
+        return result.trim();
+    };
+
+    const items = [
+        { label: '시장/심볼', value: `${company.market || '-'} : ${company.symbol || '-'}` },
+        { label: '업종/산업', value: `${company.sector || '-'} / ${company.industry || '-'}` },
+        { label: '대표자', value: company.ceo || '-' },
+        { label: '시가총액', value: formatCurrency(company.marcap, company.market), highlight: true },
+        { label: '매출액', value: formatCurrency(company.revenue, company.market) },
+        { label: '당기순이익', value: formatCurrency(company.net_income, company.market) },
+        { label: 'PER / PBR', value: `${company.per || '-'} / ${company.pbr || '-'}` },
+        { label: '홈페이지', value: company.website ? `<a href="${company.website}" target="_blank">방문하기 ↗</a>` : '-' }
+    ];
+
+    card.innerHTML = items.map(item => `
+        <div class="info-item">
+            <span class="info-label">${item.label}</span>
+            <span class="info-value ${item.highlight ? 'marcap-highlight' : ''}">${item.value}</span>
+        </div>
+    `).join('');
 }
 
 function goToList() {
