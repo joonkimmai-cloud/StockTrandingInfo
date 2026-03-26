@@ -99,7 +99,7 @@ async def generate_analysis(session, news_data):
         {json.dumps(news_data, ensure_ascii=False, indent=2)}
         
         [분석 가이드]
-        1. 각 종목의 거래량 급증 원인을 제공된 다수의 뉴스(최대 10개)를 종합하여 다각도로 분석해 주세요 (매크로, 뉴스, 산업 테마).
+        1. 각 종목의 거래량 급증 원인을 제공된 다수의 뉴스(최대 10개)를 종합하여 다각도로 분석해 주세요 (경제, 사회, 문화, 기술, 국제).
         2. 시장 전반의 요약과 향후 증시 예측 (에널리스트 톤).
         3. Sentiment (Bullish/Bearish) 명시.
         4. 결과를 반드시 JSON 구조로만 출력하세요.
