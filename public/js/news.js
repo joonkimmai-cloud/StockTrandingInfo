@@ -108,7 +108,7 @@ async function renderList(page = 1) {
 
         uniqueEntries.forEach(item => {
             const date = new Date(item.published_at).toLocaleString('ko-KR', {
-                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                year: 'numeric', month: 'short', day: 'numeric'
             });
 
             // AI 분석 정보가 있으면 분석 내용을 우선 보여주고, 없으면 뉴스 타이틀을 보여줍니다.
@@ -216,7 +216,7 @@ async function renderDetail(id) {
         document.getElementById('detail-title').innerText = `${ana.companies?.name || '종목'} ${isOnlyNews ? '최신 소식' : 'AI 투자 인사이트 리포트'}`;
         
         document.getElementById('detail-date').innerText = new Date(ana.created_at).toLocaleString('ko-KR', {
-            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            year: 'numeric', month: 'long', day: 'numeric'
         });
 
         const aiBox = document.getElementById('ai-content');
