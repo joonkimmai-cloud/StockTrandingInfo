@@ -35,7 +35,7 @@ def build_html_template(data, news_data=None):
         raw = data.get('raw_data', {})
         err_msg = data.get('error_message', '알 수 없는 오류')
         
-        data['market_summary'] = f"⚠️ AI 분석 지연 (API 응답 실패). AI가 현재 일시적인 오류를 겪고 있어 로우 데이터를 그대로 전송합니다.<br>사유: {err_msg}"
+        # data['market_summary'] = f"⚠️ AI 분석 지연 (API 응답 실패). AI가 현재 일시적인 오류를 겪고 있어 로우 데이터를 그대로 전송합니다.<br>사유: {err_msg}"
         data['prediction'] = "가장 많이 검색된 주식들의 헤드라인을 직접 참고하여 주시기 바랍니다."
         
         if 'kr_analysis' not in data: data['kr_analysis'] = []
