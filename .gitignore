@@ -13,3 +13,9 @@ market_data.json
 report.json
 tmp_*.py
 tmp_alter.py
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
