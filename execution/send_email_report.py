@@ -133,61 +133,30 @@ def build_html_template(data, news_data=None):
         </div>
         """
 
-    template = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <style>
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; color: #1c1e21; margin: 0; padding: 0; }}
-        .container {{ max-width: 650px; margin: 30px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }}
-        .header {{ background: linear-gradient(135deg, #004e92 0%, #000428 100%); color: #ffffff; padding: 40px 20px; text-align: center; }}
-        .content {{ padding: 30px; line-height: 1.6; }}
-        .section-title {{ font-size: 1.4em; border-bottom: 3px solid #004e92; padding-bottom: 8px; margin-top: 40px; color: #004e92; font-weight: 700; }}
-        .market-summary {{ background: #f8f9fa; border-left: 4px solid #004e92; padding: 20px; border-radius: 0 8px 8px 0; margin-bottom: 25px; font-size: 1.05em; }}
-        .stock-card {{ border: 1px solid #e1e4e8; border-radius: 10px; padding: 20px; margin-bottom: 20px; background: #ffffff; transition: 0.3s; }}
-        .stock-name {{ font-weight: bold; font-size: 1.2em; color: #1a0a54; }}
-        .sentiment {{ float: right; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; text-transform: uppercase; }}
-        .bullish {{ background: #d4edda; color: #155724; }}
-        .bearish {{ background: #f8d7da; color: #721c24; }}
-        .prediction-box {{ background: linear-gradient(to right, #eef2f3, #8e9eab); padding: 25px; border-radius: 12px; margin-top: 40px; }}
-        .footer {{ text-align: center; font-size: 0.85em; color: #65676b; padding: 30px; background: #f0f2f5; border-top: 1px solid #e1e4e8; }}
-        .tag {{ display: inline-block; background: #004e92; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; margin-bottom: 5px; }}
-    </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <span style="font-size: 0.9em; opacity: 0.8;">short game INSIGHTS</span>
-                <h1 style="margin: 10px 0;">Daily Market Report</h1>
-                <p style="margin: 0; font-size: 1.1em; opacity: 0.9;">{datetime.now(KST).strftime('%Y-%m-%d %H:%M')}</p>
-            </div>
-            <div class="content">
-                <div class="market-summary">
-                    <h4 style="margin-top: 0; color: #004e92;">Market Sentiment Summary</h4>
-                    {data.get('market_summary', '데이터를 불러올 수 없습니다.')}
-                </div>
-                
-                <h2 class="section-title">🇰🇷 KOREA - Top Relative Volume</h2>
-                {kr_html if kr_html.strip() else '<p style="color: #888; text-align: center; padding: 20px;">대한민국 시장에서 금일 조건에 부합하는 종목이 발견되지 않았습니다.</p>'}
-                
-                <h2 class="section-title">🇺🇸 USA - Top Relative Volume</h2>
-                {us_html if us_html.strip() else '<p style="color: #888; text-align: center; padding: 20px;">미국 시장에서 금일 조건에 부합하는 종목이 발견되지 않았습니다.</p>'}
-                
-                <div class="prediction-box">
-                    <h3 style="margin-top: 0; color: #2c3e50;">Tomorrow's Outlook & Strategy</h3>
-                    <p>{data.get('prediction', '예측 데이터를 생성할 수 없습니다.')}</p>
-                </div>
-            </div>
-            <div class="footer">
-                <p>본 고지사항은 투자 참고용이며 최종 투자 결정은 본인의 판단하에 이루어져야 합니다.<br>short game Team</p>
-                <div style="margin-top: 15px;">
-                    <a href="#" style="color: #004e92; text-decoration: none;">Unsubscribe</a> | <a href="#" style="color: #004e92; text-decoration: none;">View Online</a>
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
+    css_path = os.path.join(os.path.dirname(__file__), '..', 'templates', 'email', 'email_style.css')
+    html_path = os.path.join(os.path.dirname(__file__), '..', 'templates', 'email', 'email_template.html')
+    
+    try:
+        with open(css_path, 'r', encoding='utf-8') as f:
+            css_content = f.read()
+        with open(html_path, 'r', encoding='utf-8') as f:
+            template_str = f.read()
+    except Exception as e:
+        print(f"Error reading email templates: {e}")
+        return "<p>Error loading email template.</p>"
+
+    kr_html_content = kr_html if kr_html.strip() else '<p style="color: #888; text-align: center; padding: 20px;">대한민국 시장에서 금일 조건에 부합하는 종목이 발견되지 않았습니다.</p>'
+    us_html_content = us_html if us_html.strip() else '<p style="color: #888; text-align: center; padding: 20px;">미국 시장에서 금일 조건에 부합하는 종목이 발견되지 않았습니다.</p>'
+
+    import re
+    template = template_str
+    template = re.sub(r'\{\s*css_content\s*\}', css_content, template)
+    template = re.sub(r'\{\s*time_now\s*\}', datetime.now(KST).strftime('%Y-%m-%d %H:%M'), template)
+    template = re.sub(r'\{\s*market_summary\s*\}', data.get('market_summary', '데이터를 불러올 수 없습니다.'), template)
+    template = re.sub(r'\{\s*kr_html\s*\}', kr_html_content, template)
+    template = re.sub(r'\{\s*us_html\s*\}', us_html_content, template)
+    template = re.sub(r'\{\s*prediction\s*\}', data.get('prediction', '예측 데이터를 생성할 수 없습니다.'), template)
+
     return template
 
 def send_email(subject, body, to_emails):

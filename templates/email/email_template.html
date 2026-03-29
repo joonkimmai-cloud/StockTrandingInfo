@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        {
+            css_content
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <span style="font-size: 0.9em; opacity: 0.8;">SHORT GAME INSIGHTS</span>
+            <h1 style="margin: 10px 0;">Daily Report</h1>
+            <p style="margin: 0; font-size: 1.1em; opacity: 0.9;">{time_now}</p>
+        </div>
+        <div class="content">
+            <div class="market-summary">
+                <h4 style="margin-top: 0; color: #004e92;">Market summary analyzed via AI</h4>
+                {market_summary}
+            </div>
+
+            <h2 class="section-title">🇰🇷 KOREA</h2>
+            {kr_html}
+
+            <h2 class="section-title">🇺🇸 USA</h2>
+            {us_html}
+
+            <div class="prediction-box">
+                <h3 style="margin-top: 0; color: #2c3e50;">Today's Outlook & Strategy</h3>
+                <p>{prediction}</p>
+            </div>
+        </div>
+        <div class="footer">
+            <p>본 고지사항은 AI를 통해 분석한 투자 참고용이며 최종 투자 결정은 본인의 판단하에 이루어져야 합니다.<br>short game Team</p>
+            <div style="margin-top: 15px;">
+                <a href="#" style="color: #004e92; text-decoration: none;">Unsubscribe</a> | <a href="#"
+                    style="color: #004e92; text-decoration: none;">View Online</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
