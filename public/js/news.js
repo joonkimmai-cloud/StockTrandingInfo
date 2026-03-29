@@ -268,8 +268,8 @@ async function renderDetail(id) {
                         ${thumb}
                         <div class="news-text-content">
                             <h4 class="news-item-title">${escapeHTML(n.title)}</h4>
-                            <p class="news-item-snippet">${escapeHTML(n.snippet || '')}</p>
-                            <p class="news-item-summary">${escapeHTML(n.content || '').replace(/\n/g, '<br>')}</p>
+                            <p class="news-item-snippet">${escapeHTML((n.snippet || '').replace(/<[^>]*>?/gm, ''))}</p>
+                            <p class="news-item-summary">${escapeHTML((n.content || '').replace(/<[^>]*>?/gm, '')).replace(/\n/g, '<br>')}</p>
                             <div class="news-item-footer">
                                 <span class="news-source">${escapeHTML(n.source_name || '알 수 없음')}</span>
                                 <span class="news-link-icon">원문 보기 ↗</span>

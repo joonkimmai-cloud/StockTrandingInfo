@@ -164,7 +164,7 @@ function showNewsDetail(article) {
         <div style="background:#f9f9f9; padding:15px; border-radius:8px; line-height:1.6; color:#444;">
             <p style="margin-top:0;"><b>출처:</b> ${escapeHTML(article.source_name || '알 수 없음')}</p>
             <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-            <div style="white-space:pre-wrap;">${escapeHTML(article.snippet || article.content || '본문 내용이 없습니다.')}</div>
+            <div style="white-space:pre-wrap;">${escapeHTML((article.snippet || article.content || '본문 내용이 없습니다.').replace(/<[^>]*>?/gm, ''))}</div>
         </div>
         <p style="font-size:12px; color:#999; margin-top:15px;">※ 본 요약 내용은 수집 당시의 데이터이며, 자세한 내용은 원문 기사를 확인해 주세요.</p>
     `;
